@@ -1,0 +1,96 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  
+  # PostgreSQL Database for Production
+  datasource:
+    url: jdbc:postgresql://localhost:5432/skillforge_prod
+    username: skillforge_user
+    password: ${DB_PASSWORD:change-me-in-production}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # JPA/Hibernate Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+
+# JWT Configuration - Use strong secret in production
+jwt:
+  secret: ${JWT_SECRET:please-change-this-to-64-chars-random-string-in-production-env}
+  expiration: 604800000
+
+# OAuth2 Configuration
+oauth2:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
+    client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
+  github:
+    client-id: ${GITHUB_CLIENT_ID:your-github-client-id}
+    client-secret: ${GITHUB_CLIENT_SECRET:your-github-client-secret}
+
+# ML Service Configuration
+ml:
+  base-url: ${ML_SERVICE_URL:http://localhost:8000}
+  request-timeout: 12000
+  request-secret: ${ML_SECRET:}
+
+# Server Configuration
+server:
+  port: 8081
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+  error:
+    include-message: when_param
+    include-stacktrace: never
+
+# Logging - Production level
+logging:
+  level:
+    root: WARN
+    com.skillforge: INFO
+    org.springframework.security: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/skillforge.log
+    max-size: 10MB
+    max-history: 30
+
+# Springdoc OpenAPI (Swagger)
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: false  # Disable in production for security
+
+# Email Configuration
+mail:
+  smtp:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:your-email@gmail.com}
+    password: ${MAIL_PASSWORD:your-app-password}
+    auth: true
+    use-tls: true

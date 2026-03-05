@@ -1,0 +1,52 @@
+2026-03-05 14:50:37.630 [main] INFO  c.skillforge.SkillForgeApplication - Starting SkillForgeApplication v1.0.0 using Java 24 with PID 16484 (D:\MRINAL\java\skill-forge-master\backend-spring\target\skillforge-backend-1.0.0.jar started by Mrinal in D:\MRINAL\java\skill-forge-master\backend-spring)
+2026-03-05 14:50:37.634 [main] INFO  c.skillforge.SkillForgeApplication - The following 1 profile is active: "prod"
+2026-03-05 14:50:39.558 [main] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Unable to start web server
+2026-03-05 14:50:39.611 [main] ERROR o.s.b.d.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Failed to bind properties under 'server.error.include-message' to org.springframework.boot.autoconfigure.web.ErrorProperties$IncludeAttribute:
+
+    Property: server.error.include-message
+    Value: "when_param"
+    Origin: class path resource [application-prod.yml] from skillforge-backend-1.0.0.jar - 63:22
+    Reason: failed to convert java.lang.String to org.springframework.boot.autoconfigure.web.ErrorProperties$IncludeAttribute (caused by java.lang.IllegalArgumentException: No enum constant org.springframework.boot.autoconfigure.web.ErrorProperties.IncludeAttribute.when_param)
+
+Action:
+
+Update your application's configuration. The following values are valid:
+
+    ALWAYS
+    NEVER
+    ON_PARAM
+
+2026-03-05 14:54:37.939 [main] INFO  c.skillforge.SkillForgeApplication - Starting SkillForgeApplication v1.0.0 using Java 24 with PID 22496 (D:\MRINAL\java\skill-forge-master\backend-spring\target\skillforge-backend-1.0.0.jar started by Mrinal in D:\MRINAL\java\skill-forge-master\backend-spring)
+2026-03-05 14:54:37.943 [main] INFO  c.skillforge.SkillForgeApplication - The following 1 profile is active: "prod"
+2026-03-05 14:54:39.857 [main] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Unable to start web server
+2026-03-05 14:54:39.899 [main] ERROR o.s.b.d.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Failed to bind properties under 'server.error.include-message' to org.springframework.boot.autoconfigure.web.ErrorProperties$IncludeAttribute:
+
+    Property: server.error.include-message
+    Value: "when_param"
+    Origin: class path resource [application-prod.yml] from skillforge-backend-1.0.0.jar - 63:22
+    Reason: failed to convert java.lang.String to org.springframework.boot.autoconfigure.web.ErrorProperties$IncludeAttribute (caused by java.lang.IllegalArgumentException: No enum constant org.springframework.boot.autoconfigure.web.ErrorProperties.IncludeAttribute.when_param)
+
+Action:
+
+Update your application's configuration. The following values are valid:
+
+    ALWAYS
+    NEVER
+    ON_PARAM
+

@@ -1,0 +1,111 @@
+.course-detail-container {
+  padding: 2rem 0;
+  min-height: 85vh;
+}
+
+.course-hero {
+  width: 100%;
+  max-height: 400px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.course-hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.course-detail-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 1rem 0;
+}
+
+.course-meta-detail {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1rem;
+  color: #666;
+}
+
+.course-detail-description {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #333;
+}
+
+.course-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat .label {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.stat .value {
+  font-weight: 600;
+  font-size: 1.2rem;
+  color: #0052cc;
+}
+
+.detail-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+
+.syllabus-modules {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.module-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  align-items: flex-start;
+}
+
+.module-icon {
+  font-size: 1.5rem;
+}
+
+.module-info h6 {
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.sticky-card {
+  position: sticky;
+  top: 100px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+
+.enrolled-state {
+  text-align: center;
+}
+
+.enrollment-summary {
+  margin-bottom: 1.5rem;
+}
+
+.enrollment-summary h5 {
+  font-weight: 600;
+  color: #1a1a1a;
+}

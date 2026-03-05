@@ -1,0 +1,479 @@
+.settings-page {
+  margin-left: 280px;
+  min-height: calc(100vh - 70px);
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 2rem 0;
+  transition: margin-left 0.3s ease;
+}
+
+.settings-page.sidebar-collapsed {
+  margin-left: 80px;
+}
+
+.settings-main {
+  max-width: 1200px;
+  padding: 0 2rem;
+}
+
+/* Page Header */
+.page-header {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  border-left: 5px solid #6f42c1;
+}
+
+.page-header h1 {
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+}
+
+.page-subtitle {
+  color: #666;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+/* Tabs */
+.settings-tabs {
+  margin-bottom: 2rem;
+}
+
+.nav-tabs {
+  background: white;
+  padding: 1rem;
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: none;
+}
+
+.nav-tabs .nav-link {
+  color: #666;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+  color: #6f42c1;
+  background: #f8f9fa;
+}
+
+.nav-tabs .nav-link.active {
+  color: #6f42c1;
+  background: #e9dff5;
+  border-bottom-color: #6f42c1;
+}
+
+/* Tab Content */
+.tab-content-area {
+  background: white;
+  padding: 2rem;
+  border-radius: 0 12px 12px 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+/* Settings Card */
+.settings-card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.settings-header {
+  background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
+  color: white;
+  padding: 1rem;
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+}
+
+.settings-header h5 {
+  margin: 0;
+  font-weight: 700;
+}
+
+.settings-header.danger-header {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.settings-card.danger {
+  border-left: 5px solid #dc3545;
+}
+
+/* Form Styling */
+.form-label {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.form-input {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.form-input:focus {
+  border-color: #6f42c1;
+  box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.25);
+}
+
+.custom-checkbox {
+  margin-bottom: 0.75rem;
+}
+
+.custom-checkbox label {
+  margin-bottom: 0;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+}
+
+/* Buttons */
+.btn-save {
+  background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
+  border: none;
+  font-weight: 600;
+  padding: 0.75rem 2rem;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.btn-save:hover {
+  background: linear-gradient(135deg, #5a32a3 0%, #4a2580 100%);
+  transform: scale(1.02);
+}
+
+.btn-danger-full {
+  width: 100%;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+.danger-text {
+  color: #dc3545;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+/* ===== STREAKS SECTION ===== */
+.streaks-section {
+  background: linear-gradient(135deg, #fff5f7 0%, #f5e6ff 100%);
+  padding: 2rem;
+  border-radius: 12px;
+  border-left: 5px solid #ff1744;
+}
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #ff1744;
+}
+
+.section-title h5 {
+  margin: 0;
+  font-weight: 700;
+  color: #1a1a2e;
+  font-size: 1.2rem;
+}
+
+.streak-navigation {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav-arrow {
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+}
+
+.page-indicator {
+  color: #666;
+  font-weight: 600;
+  min-width: 40px;
+  text-align: center;
+}
+
+/* Streaks Container */
+.streaks-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.streak-card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  background: white;
+  border-top: 5px solid #ff1744;
+}
+
+.streak-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+}
+
+.streak-icon {
+  font-size: 4rem;
+  margin: 1rem 0;
+  display: inline-block;
+  transition: all 0.3s ease;
+  animation: fireFlicker 2s infinite;
+}
+
+.streak-icon.completed {
+  color: #ff1744;
+}
+
+.streak-icon.incomplete {
+  color: #999;
+  opacity: 0.5;
+}
+
+@keyframes fireFlicker {
+  0%, 100% {
+    text-shadow: 0 0 10px rgba(255, 23, 68, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(255, 23, 68, 0.8);
+    transform: scale(1.05);
+  }
+}
+
+.streak-date {
+  font-weight: 700;
+  color: #333;
+  margin: 1rem 0 0.5rem 0;
+}
+
+.streak-category {
+  color: #666;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 1rem 0;
+  font-weight: 500;
+}
+
+.streak-progress {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.progress-bar-small {
+  height: 6px;
+  background: #e9ecef;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill-small {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  display: block;
+  color: #666;
+  font-weight: 600;
+}
+
+/* ===== GOALS SECTION ===== */
+.goals-section {
+  background: linear-gradient(135deg, #fff8e1 0%, #f0f7ff 100%);
+  padding: 2rem;
+  border-radius: 12px;
+  border-left: 5px solid #ffc107;
+}
+
+.section-title-main {
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 1.5rem;
+  font-size: 1.2rem;
+}
+
+.goal-card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  background: white;
+  border-left: 5px solid #ffc107;
+}
+
+.goal-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.goal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.goal-milestone {
+  font-size: 1.5rem;
+}
+
+.goal-days {
+  background: #ffc107;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.goal-name {
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 0.75rem;
+}
+
+.goal-progress-bar {
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.goal-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffc107 0%, #ff9800 100%);
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+/* ===== ACHIEVEMENTS SECTION ===== */
+.achievements-section {
+  background: linear-gradient(135deg, #e8f5e9 0%, #fff3e0 100%);
+  padding: 2rem;
+  border-radius: 12px;
+  border-left: 5px solid #28a745;
+}
+
+.achievement-card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  background: white;
+}
+
+.achievement-card.earned {
+  border-left: 5px solid #28a745;
+  background: linear-gradient(135deg, #ffffff 0%, #f0fff4 100%);
+}
+
+.achievement-card.locked {
+  border-left: 5px solid #ccc;
+  background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+  opacity: 0.7;
+}
+
+.achievement-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.achievement-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.achievement-name {
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.achievement-desc {
+  color: #666;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+  min-height: 40px;
+}
+
+/* Alert */
+.alert {
+  border: none;
+  border-radius: 10px;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .settings-page {
+    margin-left: 80px;
+    padding: 1rem 0;
+  }
+
+  .settings-main {
+    padding: 0 1rem;
+  }
+
+  .page-header {
+    padding: 1.5rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .tab-content-area {
+    padding: 1.5rem;
+  }
+
+  .streaks-container {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+
+  .section-title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .streak-navigation {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .goals-section,
+  .achievements-section {
+    padding: 1.5rem;
+  }
+
+  .section-title-main {
+    font-size: 1.1rem;
+  }
+}

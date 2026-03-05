@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (replaces MongoDB)
+  postgres:
+    image: postgres:16-alpine
+    container_name: skillforge-postgres
+    environment:
+      POSTGRES_DB: skillforge
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - skillforge-network
+
+  # Spring Boot Backend (replaces Node.js backend)
+  backend:
+    build:
+      context: ./backend-spring
+      dockerfile: Dockerfile
+    container_name: skillforge-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/skillforge
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
+      SPRING_PROFILES_ACTIVE: dev
+      JWT_SECRET: dev-secret-key-minimum-32-characters-long-key
+      ML_BASE_URL: http://ml-service:8000
+      JAVA_OPTS: -Xmx512m -Xms256m
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - skillforge-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # FastAPI ML Service (unchanged from original)
+  ml-service:
+    build: ./ml-service
+    container_name: skillforge-ml
+    ports:
+      - "8000:8000"
+    environment:
+      BACKEND_URL: http://backend:8080
+    depends_on:
+      - backend
+    networks:
+      - skillforge-network
+    command: python -m uvicorn main:app --host 0.0.0.0 --port 8000
+
+  # React Frontend (unchanged from original)
+  frontend:
+    build: ./frontend
+    container_name: skillforge-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8080/api
+    depends_on:
+      - backend
+    networks:
+      - skillforge-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  skillforge-network:
+    driver: bridge

@@ -1,0 +1,140 @@
+spring:
+  application:
+    name: skillforge-backend
+  profiles:
+    active: dev
+  
+  # JPA/Hibernate Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+
+  # Database Configuration (H2 File-based for persistence)
+  datasource:
+    url: jdbc:h2:file:${user.dir}/data/skillforgedb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=TRUE;AUTO_RECONNECT=TRUE
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 20000
+  
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # OAuth2 Configuration
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
+            scope:
+              - profile
+              - email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+          github:
+            client-id: ${GITHUB_CLIENT_ID:your-github-client-id}
+            client-secret: ${GITHUB_CLIENT_SECRET:your-github-client-secret}
+            scope:
+              - user:email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
+          github:
+            authorization-uri: https://github.com/login/oauth/authorize
+            token-uri: https://github.com/login/oauth/access_token
+            user-info-uri: https://api.github.com/user
+            user-name-attribute: login
+
+server:
+  port: 8081
+  servlet:
+    context-path: /
+
+# JWT Configuration
+jwt:
+  secret: dev-secret-key-change-in-production-with-longer-key-1234567890abcdefghij
+  expiration: 604800000
+
+# ML Service Configuration
+ml:
+  base-url: http://localhost:8000
+  request-timeout: 12000
+  request-secret: ""
+
+# Email Configuration (Development)
+mail:
+  smtp:
+    host: localhost
+    port: 1025
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.skillforge: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Springdoc OpenAPI (Swagger)
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 604800000
+
+ml:
+  base-url: ${ML_SERVICE_URL:http://ml-service:8000}
+  request-timeout: 12000
+  request-secret: ${ML_REQUEST_SECRET:}
+
+logging:
+  level:
+    root: WARN
+    com.skillforge: INFO
+
+server:
+  port: ${SERVER_PORT:8080}

@@ -1,0 +1,71 @@
+.main-content {
+  min-height: 85vh;
+  background: #f8f9fa;
+}
+
+body {
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+  background: #f8f9fa;
+}
+
+a {
+  color: #0052cc;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.btn-primary {
+  background-color: #0052cc;
+  border-color: #0052cc;
+}
+
+.btn-primary:hover {
+  background-color: #0040a3;
+  border-color: #0040a3;
+}
+
+.btn-success {
+  background-color: #00bfa6;
+  border-color: #00bfa6;
+}
+
+.btn-success:hover {
+  background-color: #009989;
+  border-color: #009989;
+}
+
+/* App Layout */
+.app-layout {
+  display: flex;
+  min-height: calc(100vh - 70px);
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Sidebar visibility for protected routes */
+.my-courses-page,
+.certifications-page,
+.exam-proctoring-page,
+.performance-analytics-page,
+.settings-page,
+.course-content-page {
+  margin-left: 280px;
+}
+
+@media (max-width: 768px) {
+  .my-courses-page,
+  .certifications-page,
+  .exam-proctoring-page,
+  .performance-analytics-page,
+  .settings-page,
+  .course-content-page {
+    margin-left: 80px;
+  }
+}
+

@@ -1,0 +1,140 @@
+name: Build and Deploy SkillForge
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Java
+      uses: actions/setup-java@v3
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: maven
+    
+    - name: Build Backend with Maven
+      run: |
+        cd backend-spring
+        ./mvnw clean package -DskipTests
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'frontend/package-lock.json'
+    
+    - name: Install Frontend Dependencies
+      run: |
+        cd frontend
+        npm install
+    
+    - name: Build Frontend
+      run: |
+        cd frontend
+        npm run build
+    
+    - name: Upload Backend Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: backend-jar
+        path: backend-spring/target/skillforge-backend-1.0.0.jar
+    
+    - name: Upload Frontend Build
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-dist
+        path: frontend/dist/
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Java
+      uses: actions/setup-java@v3
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: maven
+    
+    - name: Run Backend Tests
+      run: |
+        cd backend-spring
+        ./mvnw test
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Build and Push Backend Image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./backend-spring
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+    
+    - name: Build and Push Frontend Image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./frontend
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:latest
+
+  deploy:
+    needs: docker
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Deploy to Azure
+      env:
+        AZURE_APP_NAME: skillforge-api
+        AZURE_RESOURCE_GROUP: skillforge-rg
+      run: |
+        # Install Azure CLI
+        curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+        
+        # Login
+        az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} \
+                 -p ${{ secrets.AZURE_CLIENT_SECRET }} \
+                 --tenant ${{ secrets.AZURE_TENANT_ID }}
+        
+        # Deploy
+        az webapp up --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+                     --name ${{ env.AZURE_APP_NAME }} \
+                     --runtime JAVA:21

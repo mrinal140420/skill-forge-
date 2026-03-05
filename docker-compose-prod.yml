@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: skillforge-postgres
+    environment:
+      POSTGRES_DB: skillforge_prod
+      POSTGRES_USER: skillforge_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-skillforge_default_123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skillforge_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - skillforge-network
+
+  # Spring Boot Backend
+  backend:
+    build:
+      context: ./backend-spring
+      dockerfile: Dockerfile
+    container_name: skillforge-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/skillforge_prod
+      SPRING_DATASOURCE_USERNAME: skillforge_user
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-skillforge_default_123}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production-with-longer-key-1234567890abcdefghij}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      ML_SERVICE_URL: http://ml-service:8000
+      MAIL_HOST: ${MAIL_HOST:-localhost}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - skillforge-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/swagger-ui.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: skillforge-frontend
+    environment:
+      VITE_API_URL: http://localhost:8081
+      VITE_APP_NAME: SkillForge
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - skillforge-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Python ML Service
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: skillforge-ml
+    environment:
+      ML_SERVICE_PORT: 8000
+      BACKEND_URL: http://backend:8081
+    ports:
+      - "8000:8000"
+    depends_on:
+      - backend
+    volumes:
+      - ./ml-service/models:/app/models
+    networks:
+      - skillforge-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Mail Service (MailHog for development)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: skillforge-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - skillforge-network
+    environment:
+      MH_SMTP_BIND_ADDR: 0.0.0.0:1025
+
+volumes:
+  postgres_data:
+
+networks:
+  skillforge-network:
+    driver: bridge

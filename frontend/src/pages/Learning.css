@@ -1,0 +1,145 @@
+.learning-container {
+  padding: 3rem 0;
+  min-height: 85vh;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef7f5 100%);
+}
+
+/* Main learning card */
+.learning-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0, 82, 204, 0.06);
+  transition: all 0.3s ease;
+}
+
+.learning-card:hover {
+  box-shadow: 0 12px 30px rgba(0, 82, 204, 0.12);
+  transform: translateY(-3px);
+}
+
+/* Video / Content Placeholder */
+.content-placeholder {
+  width: 100%;
+  aspect-ratio: 16/9;
+
+  /* MATCH HERO COLORS */
+  background: linear-gradient(135deg, #0052cc 0%, #00bfa6 100%);
+
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.content-placeholder::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Video placeholder text */
+.video-placeholder {
+  text-align: center;
+  color: white;
+  z-index: 2;
+}
+
+.video-placeholder h3 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.video-placeholder p {
+  opacity: 0.9;
+  font-size: 1rem;
+}
+
+/* Module description */
+.module-description {
+  margin: 2rem 0;
+}
+
+.module-description h4 {
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 1rem;
+}
+
+.module-description ul {
+  list-style-position: inside;
+  color: #64748b;
+  line-height: 1.8;
+  padding-left: 0;
+}
+
+/* Quiz Card */
+.quiz-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 82, 204, 0.05);
+  transition: all 0.3s ease;
+}
+
+.quiz-card:hover {
+  box-shadow: 0 10px 24px rgba(0, 82, 204, 0.1);
+}
+
+/* Quiz result section */
+.quiz-result {
+  text-align: center;
+}
+
+/* Score display */
+.result-score {
+  background: linear-gradient(135deg, #0052cc 0%, #00bfa6 100%);
+  color: white;
+  padding: 2.5rem;
+  border-radius: 16px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 12px 30px rgba(0, 82, 204, 0.25);
+}
+
+.result-score h3 {
+  font-size: 3.2rem;
+  font-weight: 900;
+  margin: 0;
+}
+
+.result-score p {
+  margin-top: 0.5rem;
+  opacity: 0.9;
+  font-weight: 600;
+}
+
+/* Buttons inside learning page (optional override) */
+.learning-container .btn-primary {
+  background: linear-gradient(135deg, #0052cc 0%, #00bfa6 100%);
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.learning-container .btn-primary:hover {
+  box-shadow: 0 8px 20px rgba(0, 82, 204, 0.25);
+  transform: translateY(-2px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .learning-container {
+    padding: 2rem 1rem;
+  }
+
+  .video-placeholder h3 {
+    font-size: 1.6rem;
+  }
+
+  .result-score h3 {
+    font-size: 2.4rem;
+  }
+}

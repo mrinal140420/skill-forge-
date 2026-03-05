@@ -1,0 +1,54 @@
+.navbar-skillforge {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+.skillforge-logo {
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: #0052cc !important;
+  letter-spacing: 0.5px;
+}
+
+.navbar-user {
+  margin-right: 0.5rem;
+  margin-left: 1rem;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Authenticated Navbar Styles */
+.navbar-authenticated {
+  padding: 1rem 0;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+}
+
+.navbar-auth-section {
+  align-items: center;
+}
+
+.profile-dropdown {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #333 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+  padding: 0.5rem 1rem;
+}
+
+.profile-dropdown:hover {
+  background-color: #f0f0f0 !important;
+  border-radius: 6px;
+}
+
+.profile-icon {
+  font-size: 1.25rem;
+}
+
+.profile-name {
+  font-weight: 600;
+  color: #333;
+}
