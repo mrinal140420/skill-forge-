@@ -10,6 +10,8 @@ export const Navbar: FC = () => {
   const { user } = useAuthStore();
   const { toggleSidebar } = useUIStore();
   const [branding, setBranding] = useState(DEFAULT_PLATFORM_BRANDING);
+  const [logoSrc, setLogoSrc] = useState(DEFAULT_PLATFORM_BRANDING.logo);
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
 
   useEffect(() => {
     setBranding(readPlatformBranding());
@@ -23,6 +25,20 @@ export const Navbar: FC = () => {
       window.removeEventListener(PLATFORM_BRANDING_UPDATED_EVENT, syncBranding);
     };
   }, []);
+
+  useEffect(() => {
+    setLogoSrc(branding.logo || DEFAULT_PLATFORM_BRANDING.logo);
+    setLogoLoadFailed(false);
+  }, [branding]);
+
+  const handleLogoError = () => {
+    if (logoSrc !== DEFAULT_PLATFORM_BRANDING.logo) {
+      setLogoSrc(DEFAULT_PLATFORM_BRANDING.logo);
+      return;
+    }
+
+    setLogoLoadFailed(true);
+  };
 
   const handleLogoClick = (event: MouseEvent<HTMLAnchorElement>) => {
     if (!user) {
@@ -39,7 +55,18 @@ export const Navbar: FC = () => {
         {/* Logo and Brand */}
         <Link to="/" onClick={handleLogoClick} className="group flex items-center gap-3 rounded-xl px-2 py-1 transition-colors hover:bg-white/5">
           <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/95 p-1.5 transition-colors group-hover:bg-white">
-            <img src={branding.logo} alt={`${branding.platformName} logo`} className="h-full w-full object-contain" />
+            {logoLoadFailed ? (
+              <div className="flex h-full w-full items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-700">
+                SF
+              </div>
+            ) : (
+              <img
+                src={logoSrc}
+                alt={`${branding.platformName} logo`}
+                className="h-full w-full object-contain"
+                onError={handleLogoError}
+              />
+            )}
           </div>
           <div className="flex flex-col leading-none">
             <span className="text-xs font-semibold tracking-[0.24em] text-slate-300 uppercase">AI Learning Platform</span>

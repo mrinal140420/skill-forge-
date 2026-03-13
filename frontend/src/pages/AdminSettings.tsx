@@ -67,6 +67,22 @@ export const AdminSettingsPage: FC = () => {
     setMessage('Super admin settings saved locally.');
   };
 
+  const resetLogoToDefault = () => {
+    const nextSettings = {
+      ...settings,
+      logo: DEFAULT_PLATFORM_BRANDING.logo,
+    };
+
+    setSettings(nextSettings);
+    writeScopedSettings(storageKey, nextSettings);
+    writePlatformBranding({
+      platformName: nextSettings.platformName,
+      logo: nextSettings.logo,
+      supportEmail: nextSettings.supportEmail,
+    });
+    setMessage('Logo reset to default.');
+  };
+
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -114,9 +130,12 @@ export const AdminSettingsPage: FC = () => {
                   <Label>Logo Upload</Label>
                   <Input type="file" accept="image/*" onChange={handleLogoUpload} />
                   <Input placeholder="Or paste logo URL" value={settings.logo} onChange={(e) => setSettings((current) => ({ ...current, logo: e.target.value }))} />
+                  <Button type="button" variant="outline" onClick={resetLogoToDefault}>
+                    Reset To Default Logo
+                  </Button>
                 </div>
                 <div>
-                  {settings.logo ? <img src={settings.logo} alt="Platform logo preview" className="h-24 w-24 rounded-2xl object-contain bg-slate-950 p-2 shadow-md border border-slate-200" /> : <div className="h-20 w-20 rounded-xl border bg-slate-100 flex items-center justify-center text-xs text-slate-500">No logo</div>}
+                  {settings.logo ? <img src={settings.logo} alt="Platform logo preview" className="h-24 w-24 rounded-2xl object-contain bg-slate-950 p-2 shadow-md border border-slate-200" onError={(event) => { event.currentTarget.src = DEFAULT_PLATFORM_BRANDING.logo; }} /> : <div className="h-20 w-20 rounded-xl border bg-slate-100 flex items-center justify-center text-xs text-slate-500">No logo</div>}
                 </div>
               </div>
               <label className="flex items-center gap-3 text-sm">

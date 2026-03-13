@@ -1,0 +1,22 @@
+{
+  "name": "SkillForge",
+  "short_name": "SkillForge",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f1f54",
+  "theme_color": "#0f1f54",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
