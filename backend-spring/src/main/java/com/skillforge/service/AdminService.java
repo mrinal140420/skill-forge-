@@ -14,7 +14,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -116,14 +121,21 @@ public class AdminService {
                     .collect(Collectors.toList());
         }
 
-        List<Long> courseIds = managedCourses.stream().map(Course::getId).toList();
+        Map<Long, Course> managedCourseMap = managedCourses.stream()
+                .collect(Collectors.toMap(Course::getId, course -> course, (first, second) -> first, LinkedHashMap::new));
+        List<Course> uniqueManagedCourses = new ArrayList<>(managedCourseMap.values());
+
+        Set<Long> courseIds = uniqueManagedCourses.stream().map(Course::getId).collect(Collectors.toSet());
         List<Enrollment> allEnrollments = enrollmentRepository.findAll();
         List<Progress> allProgress = progressRepository.findAll();
         List<QuizAttempt> allQuizAttempts = quizAttemptRepository.findAll();
         List<Doubt> allDoubts = doubtRepository.findAll();
 
-        long enrolledStudents = allEnrollments.stream()
+        List<Enrollment> scopedEnrollments = allEnrollments.stream()
                 .filter(e -> courseIds.contains(e.getCourse().getId()))
+                .toList();
+
+        long enrolledStudents = scopedEnrollments.stream()
                 .map(e -> e.getUser().getId())
                 .distinct()
                 .count();
@@ -146,13 +158,62 @@ public class AdminService {
                 .filter(qa -> courseIds.contains(qa.getCourse().getId()))
                 .count();
 
+        Map<Long, Long> enrollmentsPerCourse = scopedEnrollments.stream()
+                .collect(Collectors.groupingBy(e -> e.getCourse().getId(), Collectors.mapping(e -> e.getUser().getId(), Collectors.toSet())))
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> (long) entry.getValue().size()));
+
+        List<Map<String, Object>> assignedCourseDetails = uniqueManagedCourses.stream()
+                .map(course -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", course.getId());
+                    item.put("title", course.getTitle());
+                    item.put("status", course.getStatus() != null ? course.getStatus().name() : "DRAFT");
+                    item.put("enrolledStudents", enrollmentsPerCourse.getOrDefault(course.getId(), 0L));
+                    return item;
+                })
+                .toList();
+
+        Map<Long, List<Enrollment>> enrollmentsByStudent = scopedEnrollments.stream()
+                .collect(Collectors.groupingBy(e -> e.getUser().getId(), LinkedHashMap::new, Collectors.toList()));
+
+        List<Map<String, Object>> enrolledStudentDetails = enrollmentsByStudent.values().stream()
+                .filter(enrollments -> !enrollments.isEmpty())
+                .map(enrollments -> {
+                    User student = enrollments.get(0).getUser();
+                    List<Map<String, Object>> courses = enrollments.stream()
+                            .map(Enrollment::getCourse)
+                            .collect(Collectors.toMap(Course::getId, course -> course, (first, second) -> first, LinkedHashMap::new))
+                            .values()
+                            .stream()
+                            .map(course -> {
+                                Map<String, Object> courseMap = new HashMap<>();
+                                courseMap.put("id", course.getId());
+                                courseMap.put("title", course.getTitle());
+                                return courseMap;
+                            })
+                            .toList();
+
+                    Map<String, Object> studentMap = new HashMap<>();
+                    studentMap.put("id", student.getId());
+                    studentMap.put("name", student.getName());
+                    studentMap.put("email", student.getEmail());
+                    studentMap.put("courses", courses);
+                    studentMap.put("coursesCount", courses.size());
+                    return studentMap;
+                })
+                .toList();
+
         java.util.Map<String, Object> summary = new java.util.HashMap<>();
-        summary.put("assignedCourses", managedCourses.size());
+        summary.put("assignedCourses", uniqueManagedCourses.size());
         summary.put("enrolledStudents", enrolledStudents);
         summary.put("averageProgress", Math.round(avgProgress * 100.0) / 100.0);
         summary.put("pendingDoubts", pendingDoubts);
         summary.put("quizAttempts", quizAttempts);
-        summary.put("recentCourses", managedCourses.stream().limit(5).toList());
+        summary.put("recentCourses", uniqueManagedCourses.stream().limit(5).toList());
+        summary.put("assignedCourseDetails", assignedCourseDetails);
+        summary.put("enrolledStudentDetails", enrolledStudentDetails);
         return summary;
     }
     
