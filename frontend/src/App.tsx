@@ -21,6 +21,8 @@ import { Certifications } from "./pages/Certifications";
 import { ExamProctoring } from "./pages/ExamProctoring";
 import { PerformanceAnalytics } from "./pages/PerformanceAnalytics";
 import { SettingsPage } from "./pages/Settings";
+import { InstructorSettingsPage } from "./pages/InstructorSettings";
+import { AdminSettingsPage } from "./pages/AdminSettings";
 import OAuthCallback from "./pages/OAuthCallback";
 import { SuperAdminDashboard } from "./pages/SuperAdminDashboard";
 import { CourseAdminDashboard } from "./pages/CourseAdminDashboard";
@@ -62,6 +64,18 @@ function PublicOnlyRoute({
   return <Navigate to={getRoleBasedRedirectPath(user.role)} replace />;
 }
 
+function LandingRoute(): React.ReactElement {
+  const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+
+  if (loading) return <div className="min-h-screen" />;
+  if (user) {
+    return <Navigate to={getRoleBasedRedirectPath(user.role)} replace />;
+  }
+
+  return <Landing />;
+}
+
 function StudentDashboardRoute(): React.ReactElement {
   const user = useAuthStore((state) => state.user);
   const loading = useAuthStore((state) => state.loading);
@@ -75,6 +89,24 @@ function StudentDashboardRoute(): React.ReactElement {
   }
 
   return <Dashboard />;
+}
+
+function StudentSettingsRoute(): React.ReactElement {
+  const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+
+  if (loading) return <div className="min-h-screen" />;
+  if (!user) return <Navigate to="/login" replace />;
+
+  const role = normalizeRole(user.role);
+  if (role === 'admin') {
+    return <Navigate to="/admin/settings" replace />;
+  }
+  if (role === 'instructor') {
+    return <Navigate to="/instructor/settings" replace />;
+  }
+
+  return <SettingsPage />;
 }
 
 function AdminRoute({
@@ -120,14 +152,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Navbar />
-        <div className="flex">
+        <div className="flex items-stretch">
           {user && <Sidebar />}
 
-          <main className={`flex-1 overflow-x-hidden`}>
+          <main className={`min-w-0 flex-1 overflow-x-hidden`}>
             <div className={user ? "w-full" : ""}>
               <Routes>
                 {/* Public */}
-                <Route path="/" element={<Landing />} />
+                <Route path="/" element={<LandingRoute />} />
                 <Route path="/courses" element={<Courses />} />
                 <Route path="/courses/:id" element={<CourseDetail />} />
 
@@ -175,7 +207,7 @@ function App() {
                 />
                 <Route
                   path="/settings"
-                  element={<ProtectedRoute element={<SettingsPage />} />}
+                  element={<StudentSettingsRoute />}
                 />
                 <Route
                   path="/doubts"
@@ -203,6 +235,10 @@ function App() {
                   path="/admin/doubts"
                   element={<AdminRoute element={<AdminDoubts />} />}
                 />
+                <Route
+                  path="/admin/settings"
+                  element={<AdminRoute element={<AdminSettingsPage />} />}
+                />
 
                 {/* Instructor Routes */}
                 <Route
@@ -224,6 +260,10 @@ function App() {
                 <Route
                   path="/instructor/doubts"
                   element={<InstructorRoute element={<InstructorDoubts />} />}
+                />
+                <Route
+                  path="/instructor/settings"
+                  element={<InstructorRoute element={<InstructorSettingsPage />} />}
                 />
 
                 {/* Fallback */}

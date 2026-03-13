@@ -1,0 +1,54 @@
+<svg width="320" height="320" viewBox="0 0 320 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="capTop" x1="62" y1="40" x2="252" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="84" y1="84" x2="236" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0EA5E9"/>
+      <stop offset="0.48" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#F97316"/>
+    </linearGradient>
+    <linearGradient id="pages" x1="120" y1="156" x2="198" y2="214" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E2E8F0"/>
+    </linearGradient>
+    <linearGradient id="pixels" x1="214" y1="114" x2="278" y2="170" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="0.45" stop-color="#84CC16"/>
+      <stop offset="1" stop-color="#FACC15"/>
+    </linearGradient>
+    <filter id="shadow" x="32" y="22" width="256" height="250" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="10"/>
+      <feGaussianBlur stdDeviation="10"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0588235 0 0 0 0 0.0941176 0 0 0 0 0.223529 0 0 0 0.24 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <path d="M160 44L250 80L160 116L70 80L160 44Z" fill="url(#capTop)"/>
+    <path d="M100 86V144C100 188 126 224 160 240C194 224 220 188 220 144V86L160 112L100 86Z" fill="url(#shield)"/>
+    <path d="M94 84C89.5817 84 86 87.5817 86 92V148C86 198.206 116.661 242.415 160 258C203.339 242.415 234 198.206 234 148V92C234 87.5817 230.418 84 226 84H94Z" stroke="#E2E8F0" stroke-opacity="0.2" stroke-width="4"/>
+    <path d="M118 146C127.333 140 138.667 137 152 137V208C138.667 200.667 127.333 197 118 197V146Z" fill="url(#pages)"/>
+    <path d="M202 146C192.667 140 181.333 137 168 137V208C181.333 200.667 192.667 197 202 197V146Z" fill="url(#pages)"/>
+    <path d="M152 137C138.667 137 127.333 140 118 146M168 137C181.333 137 192.667 140 202 146" stroke="#64748B" stroke-width="4" stroke-linecap="round"/>
+    <path d="M104 82V118" stroke="#111827" stroke-width="12" stroke-linecap="round"/>
+    <circle cx="104" cy="132" r="8" fill="#F59E0B"/>
+    <path d="M104 138V158" stroke="#F59E0B" stroke-width="6" stroke-linecap="round"/>
+    <rect x="218" y="112" width="14" height="14" rx="3" fill="url(#pixels)"/>
+    <rect x="238" y="122" width="12" height="12" rx="3" fill="url(#pixels)"/>
+    <rect x="256" y="112" width="16" height="16" rx="3" fill="url(#pixels)"/>
+    <rect x="228" y="142" width="12" height="12" rx="3" fill="url(#pixels)"/>
+    <rect x="246" y="146" width="10" height="10" rx="3" fill="url(#pixels)"/>
+    <rect x="262" y="138" width="12" height="12" rx="3" fill="url(#pixels)"/>
+    <rect x="274" y="154" width="8" height="8" rx="2" fill="url(#pixels)"/>
+  </g>
+  <path d="M62 290H102.885C119.105 290 131.273 281.533 131.273 267.375C131.273 252.369 118.469 248.431 105.5 245.953L91.6729 243.311C84.1953 241.979 79.1367 239.665 79.1367 233.898C79.1367 227.34 84.8516 223.506 94.9141 223.506C104.758 223.506 111.924 227.861 112.967 236.771H129.176C127.74 218.864 113.646 209 94.4258 209C75.9551 209 61.918 218.344 61.918 234.783C61.918 249.581 73.9102 254.144 86.832 256.594L100.988 259.289C109.244 260.846 114.055 263.252 114.055 269.124C114.055 275.11 108.457 278.99 98.1719 278.99C87.457 278.99 79.9922 274.421 78.6035 264.95H62V290Z" fill="#1D4ED8"/>
+  <path d="M141.582 290H157.814V261.87H185.455V248.227H157.814V226.377H189.252V212.734H141.582V290Z" fill="#0F172A"/>
+  <path d="M197.986 290H214.219V258.712H243.219V245.379H214.219V226.068H247.625V212.734H197.986V290Z" fill="#0F172A"/>
+  <path d="M252.244 290H268.477V258.836H286.697V245.503H268.477V226.068H291.455V212.734H252.244V290Z" fill="#EA580C"/>
+  <path d="M296 223.876C301.661 223.876 306.25 219.287 306.25 213.625C306.25 207.963 301.661 203.375 296 203.375C290.339 203.375 285.75 207.963 285.75 213.625C285.75 219.287 290.339 223.876 296 223.876Z" fill="#F59E0B"/>

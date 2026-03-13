@@ -1,65 +1,59 @@
-import { FC } from 'react';
+import { FC, MouseEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
-import { Menu, LogOut, Home } from 'lucide-react';
+import { Menu } from 'lucide-react';
+import { DEFAULT_PLATFORM_BRANDING, PLATFORM_BRANDING_UPDATED_EVENT, readPlatformBranding } from '@/lib/platformBranding';
 
 export const Navbar: FC = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const { toggleSidebar } = useUIStore();
+  const [branding, setBranding] = useState(DEFAULT_PLATFORM_BRANDING);
 
-  const handleLogout = () => {
-    logout();
+  useEffect(() => {
+    setBranding(readPlatformBranding());
+
+    const syncBranding = () => setBranding(readPlatformBranding());
+    window.addEventListener('storage', syncBranding);
+    window.addEventListener(PLATFORM_BRANDING_UPDATED_EVENT, syncBranding);
+
+    return () => {
+      window.removeEventListener('storage', syncBranding);
+      window.removeEventListener(PLATFORM_BRANDING_UPDATED_EVENT, syncBranding);
+    };
+  }, []);
+
+  const handleLogoClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!user) {
+      return;
+    }
+
+    event.preventDefault();
     navigate('/');
   };
 
   return (
-    <nav className="sticky top-0 z-40 w-full border-b border-border bg-card">
-      <div className="flex h-16 items-center gap-4 px-4 sm:px-6">
+    <nav className="sticky top-0 z-40 w-full border-b border-slate-800 bg-[#0f1f54] shadow-sm">
+      <div className="flex min-h-16 items-center gap-4 px-4 py-3 sm:px-6">
         {/* Logo and Brand */}
-        <Link to="/" className="flex items-center gap-2 font-semibold">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <span>SF</span>
+        <Link to="/" onClick={handleLogoClick} className="group flex items-center gap-3 rounded-xl px-2 py-1 transition-colors hover:bg-white/5">
+          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/95 p-1.5 transition-colors group-hover:bg-white">
+            <img src={branding.logo} alt={`${branding.platformName} logo`} className="h-full w-full object-contain" />
           </div>
-          <span className="hidden sm:inline">SkillForge</span>
+          <div className="flex flex-col leading-none">
+            <span className="text-xs font-semibold tracking-[0.24em] text-slate-300 uppercase">AI Learning Platform</span>
+            <span className="text-2xl font-bold text-white transition-colors group-hover:text-blue-200">{branding.platformName}</span>
+          </div>
         </Link>
 
-        {/* Navigation Links (Public) */}
-        {!user && (
-          <div className="ml-auto flex items-center gap-2">
-            <Link to="/courses">
-              <Button variant="ghost" size="sm">
-                Explore
-              </Button>
-            </Link>
-            <Link to="/login">
-              <Button variant="outline" size="sm">
-                Sign In
-              </Button>
-            </Link>
-            <Link to="/register">
-              <Button size="sm">
-                Get Started
-              </Button>
-            </Link>
-          </div>
-        )}
-
-        {/* Navigation Links (Authenticated) */}
         {user && (
-          <>
-            {/* Mobile Menu Toggle */}
-            <button
-              onClick={toggleSidebar}
-              className="ml-auto inline-flex lg:hidden rounded-lg p-2 hover:bg-muted"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
-
-            {/* User Actions */}
-          </>
+          <button
+            onClick={toggleSidebar}
+            className="ml-auto inline-flex rounded-xl border border-white/10 p-2 text-white transition-colors hover:bg-white/10 lg:hidden"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
         )}
       </div>
     </nav>

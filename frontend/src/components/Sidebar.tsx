@@ -32,14 +32,14 @@ const adminNavItems = [
   { icon: Users, label: 'User & Instructor Mgmt', href: '/admin/users' },
   { icon: BookOpen, label: 'Course Management', href: '/admin/courses' },
   { icon: HelpCircle, label: 'Doubts & Queries', href: '/admin/doubts' },
-  { icon: Settings, label: 'Settings', href: '/settings' },
+  { icon: Settings, label: 'Settings', href: '/admin/settings' },
 ];
 
 const instructorNavItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/instructor/dashboard' },
   { icon: BookOpen, label: 'My Courses', href: '/instructor/courses' },
   { icon: HelpCircle, label: 'Student Doubts', href: '/instructor/doubts' },
-  { icon: Settings, label: 'Settings', href: '/settings' },
+  { icon: Settings, label: 'Settings', href: '/instructor/settings' },
 ];
 
 export const Sidebar: FC = () => {
@@ -72,11 +72,11 @@ export const Sidebar: FC = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-16 z-40 h-[calc(100vh-64px)] border-r border-blue-200 bg-gradient-to-b from-blue-50 via-slate-50 to-slate-100 transition-all duration-300 lg:static lg:block ${
+        className={`fixed inset-y-16 left-0 z-40 border-r border-blue-200 bg-gradient-to-b from-blue-50 via-slate-50 to-slate-100 transition-all duration-300 lg:sticky lg:top-16 lg:inset-y-auto lg:self-stretch lg:min-h-[calc(100vh-64px)] lg:block ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         } ${isCollapsed ? 'w-20' : 'w-64'}`}
       >
-        <div className="flex flex-col h-full gap-3">
+        <div className="flex min-h-full flex-col gap-3">
           {/* Collapse Toggle */}
           <div className="flex justify-end px-3 pt-3">
             <button
@@ -119,7 +119,7 @@ export const Sidebar: FC = () => {
           </nav>
 
           {/* User Section */}
-          <div className="flex flex-col gap-2 border-t border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg mx-3 mb-3 shadow-sm">
+          <div className="mt-auto flex flex-col gap-2 border-t border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg mx-3 mb-3 shadow-sm">
             <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
               <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 shadow-md">
                 {user.name?.[0] || '?'}
