@@ -16,10 +16,9 @@ interface Course {
 
 interface CourseCardProps {
   course: Course;
-  onEnroll?: (courseId: string) => void;
 }
 
-export const CourseCard: React.FC<CourseCardProps> = ({ course, onEnroll }) => {
+export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
   const courseId = course.id || course._id || '';
 
   return (
@@ -50,7 +49,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, onEnroll }) => {
         </div>
       </div>
       <div className="p-4 border-t">
-        <Link to={`/courses/${courseId}`} className="block px-4 py-2 bg-blue-600 text-white text-center rounded font-medium hover:bg-blue-700 transition">
+        <Link to={`/course-content/${courseId}`} className="block px-4 py-2 bg-blue-600 text-white text-center rounded font-medium hover:bg-blue-700 transition">
           View Course
         </Link>
       </div>

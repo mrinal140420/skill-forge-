@@ -20,6 +20,7 @@ export const Dashboard: FC = () => {
   const stats = useMemo(() => {
     const allEnrollments = enrollments as Enrollment[];
     const completedCount = allEnrollments.filter((e) => e.progress >= 100).length;
+    const activeCount = allEnrollments.filter((e) => e.status === 'active' && e.progress < 100).length;
     const totalHours = allEnrollments.reduce((sum, e) => {
       const courseDuration = e.course?.duration || 0;
       return sum + Math.round((courseDuration * e.progress) / 100);
@@ -27,7 +28,8 @@ export const Dashboard: FC = () => {
     return {
       certificates: completedCount,
       totalHours,
-      activeCourses: allEnrollments.length,
+      activeCourses: activeCount,
+      enrolledCourses: allEnrollments.length,
     };
   }, [enrollments]);
 
@@ -79,7 +81,7 @@ export const Dashboard: FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-semibold">Enrolled Courses</p>
-                <p className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent mt-2">{(enrollments as Enrollment[]).length}</p>
+                <p className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent mt-2">{stats.enrolledCourses}</p>
               </div>
               <div className="bg-gradient-to-br from-orange-100 to-orange-50 p-4 rounded-xl shadow-md">
                 <Flame className="h-8 w-8 text-orange-600" />
@@ -179,7 +181,7 @@ export const Dashboard: FC = () => {
                 activeEnrollments.map((enrollment, idx) => (
                   <Link
                     key={enrollment.id}
-                    to={`/course-content/${enrollment.courseId}`}
+                    to={enrollment.progress < 100 ? `/course-content/${enrollment.courseId}` : '/exam'}
                     className="block"
                   >
                     <div className="flex gap-3 border-l-4 border-l-cyan-400 bg-cyan-50/30 p-3 rounded-lg hover:bg-cyan-50/60 transition-all">

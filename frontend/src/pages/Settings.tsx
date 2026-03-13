@@ -8,12 +8,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthStore } from '@/stores/authStore';
 import { useEnrollments, useProgress } from '@/hooks/useApi';
 import { ChevronLeft, ChevronRight, Flame, Settings } from 'lucide-react';
+import apiClient from '@/api/apiClient';
 
 export const SettingsPage: FC = () => {
   const user = useAuthStore((state) => state.user);
+  const setUser = useAuthStore((state) => state.setUser);
   const { data: enrollments } = useEnrollments();
   const { data: progressData } = useProgress();
   const [streakWeek, setStreakWeek] = useState(0);
+  const [profileForm, setProfileForm] = useState({ name: user?.name || '', email: user?.email || '' });
+  const [saveMessage, setSaveMessage] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const stats = useMemo(() => {
     const summary = progressData?.summary || [];
@@ -37,6 +44,46 @@ export const SettingsPage: FC = () => {
 
   const currentWeek = streaks[streakWeek];
 
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    setSaveMessage('');
+    try {
+      const { data } = await apiClient.put('/api/auth/me', {
+        name: profileForm.name,
+        email: profileForm.email,
+      });
+      setUser({ ...data, role: user?.role || data.role });
+      setSaveMessage('Profile saved successfully.');
+    } catch (error: any) {
+      setSaveMessage(error?.response?.data?.error || 'Failed to save profile.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const changePassword = async () => {
+    setSaveMessage('');
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setSaveMessage('All password fields are required.');
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setSaveMessage('New password and confirmation do not match.');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const { data } = await apiClient.post('/api/auth/change-password', passwordForm);
+      setSaveMessage(data?.message || 'Password changed successfully.');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      setSaveMessage(error?.response?.data?.error || 'Failed to change password.');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -59,24 +106,50 @@ export const SettingsPage: FC = () => {
               <CardDescription>Update your account information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {saveMessage && <div className="text-sm text-blue-600">{saveMessage}</div>}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" defaultValue={user?.name} />
+                  <Input id="name" value={profileForm.name} onChange={(e) => setProfileForm((current) => ({ ...current, name: e.target.value }))} />
                 </div>
                 <div>
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue={user?.email} />
+                  <Input id="email" type="email" value={profileForm.email} onChange={(e) => setProfileForm((current) => ({ ...current, email: e.target.value }))} />
                 </div>
               </div>
 
-              <div>
+              <div className="space-y-3">
                 <Label htmlFor="password">Change Password</Label>
-                <Input id="password" type="password" placeholder="Enter new password" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Input
+                    id="currentPassword"
+                    type="password"
+                    placeholder="Current password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm((current) => ({ ...current, currentPassword: e.target.value }))}
+                  />
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    placeholder="New password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm((current) => ({ ...current, newPassword: e.target.value }))}
+                  />
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm((current) => ({ ...current, confirmPassword: e.target.value }))}
+                  />
+                </div>
+                <Button variant="outline" onClick={changePassword} disabled={changingPassword}>
+                  {changingPassword ? 'Changing Password...' : 'Change Password'}
+                </Button>
               </div>
 
               <div className="space-y-2">
-                <Button>Save Changes</Button>
+                <Button onClick={saveProfile} disabled={savingProfile}>{savingProfile ? 'Saving...' : 'Save Changes'}</Button>
               </div>
             </CardContent>
           </Card>

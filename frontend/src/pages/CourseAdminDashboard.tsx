@@ -17,6 +17,7 @@ type DashboardSummary = {
 export const CourseAdminDashboard: FC = () => {
   const navigate = useNavigate();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [showEnrolledStudents, setShowEnrolledStudents] = useState(false);
   const [showAssignedCourses, setShowAssignedCourses] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -24,14 +25,25 @@ export const CourseAdminDashboard: FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const [dashboardRes, myCoursesRes] = await Promise.all([
+        setError(null);
+        const [dashboardResult, myCoursesResult] = await Promise.allSettled([
           adminAPI.getCourseAdminDashboard(),
           adminAPI.getMyCourses(),
         ]);
 
-        const dashboard = dashboardRes?.data || {};
-        const myCourses = myCoursesRes?.data?.courses || [];
-        const normalizedAssignedCount = Array.isArray(myCourses) ? myCourses.length : 0;
+        const dashboard =
+          dashboardResult.status === 'fulfilled' ? dashboardResult.value?.data || {} : {};
+        const myCourses =
+          myCoursesResult.status === 'fulfilled' ? myCoursesResult.value?.data?.courses || [] : [];
+
+        const normalizedAssignedCount =
+          Array.isArray(myCourses) && myCourses.length > 0
+            ? myCourses.length
+            : (dashboard?.assignedCourses ?? 0);
+
+        if (dashboardResult.status === 'rejected' && myCoursesResult.status === 'rejected') {
+          setError('Unable to load dashboard data. Please ensure backend is running and try again.');
+        }
 
         setSummary({
           assignedCourses: normalizedAssignedCount,
@@ -111,6 +123,11 @@ export const CourseAdminDashboard: FC = () => {
         <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-900 to-purple-900 bg-clip-text text-transparent">Course Admin Dashboard</h1>
         <p className="text-slate-600 text-lg">Overview for assigned courses</p>
       </div>
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         {cards.map((card, idx) => (
           <Card

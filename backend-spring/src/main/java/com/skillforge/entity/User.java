@@ -28,6 +28,18 @@ public class User {
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 
+    @Column(length = 2000)
+    private String avatar;
+
+    @Column(length = 4000)
+    private String bio;
+
+    @Column(length = 500)
+    private String linkedin;
+
+    @Column(length = 500)
+    private String github;
+
     @Column(nullable = false)
     private String passwordHash;
 
@@ -89,6 +101,38 @@ public class User {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
+    public String getLinkedin() {
+        return linkedin;
+    }
+
+    public void setLinkedin(String linkedin) {
+        this.linkedin = linkedin;
+    }
+
+    public String getGithub() {
+        return github;
+    }
+
+    public void setGithub(String github) {
+        this.github = github;
     }
 
     public String getPasswordHash() {
@@ -161,6 +205,10 @@ public class User {
         private Long id;
         private String name;
         private String email;
+        private String avatar;
+        private String bio;
+        private String linkedin;
+        private String github;
         private String passwordHash;
         private UserRole role;
         private LocalDateTime lastActivityAt;
@@ -177,6 +225,26 @@ public class User {
 
         public UserBuilder email(String email) {
             this.email = email;
+            return this;
+        }
+
+        public UserBuilder avatar(String avatar) {
+            this.avatar = avatar;
+            return this;
+        }
+
+        public UserBuilder bio(String bio) {
+            this.bio = bio;
+            return this;
+        }
+
+        public UserBuilder linkedin(String linkedin) {
+            this.linkedin = linkedin;
+            return this;
+        }
+
+        public UserBuilder github(String github) {
+            this.github = github;
             return this;
         }
 
@@ -200,6 +268,10 @@ public class User {
             user.id = this.id;
             user.name = this.name;
             user.email = this.email;
+            user.avatar = this.avatar;
+            user.bio = this.bio;
+            user.linkedin = this.linkedin;
+            user.github = this.github;
             user.passwordHash = this.passwordHash;
             user.role = this.role;
             user.lastActivityAt = this.lastActivityAt != null ? this.lastActivityAt : LocalDateTime.now();

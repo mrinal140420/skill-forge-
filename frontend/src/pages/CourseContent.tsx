@@ -1,8 +1,12 @@
-import { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronDown, ChevronRight, Play, FileText, Image as ImageIcon, Code, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, ChevronRight, Play, FileText, Image as ImageIcon, Code, Link as LinkIcon, Loader2, Github, Linkedin } from 'lucide-react';
 import apiClient from '@/api/apiClient';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useCourse, useEnrollCourse, useEnrollments, Enrollment } from '@/hooks/useApi';
+import { getProfileInitials, normalizeExternalUrl } from '@/lib/instructorProfile';
+import { useAuthStore } from '@/stores/authStore';
 
 interface Topic {
   id: number;
@@ -55,16 +59,54 @@ const getResourceIcon = (type: string) => {
 };
 
 export const CourseContent: FC = () => {
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
   const { courseId } = useParams<{ courseId: string }>();
+  const { data: course } = useCourse(courseId);
+  const { data: enrollments = [], isLoading: enrollmentsLoading } = useEnrollments();
+  const { mutate: enrollCourse, isPending: enrolling } = useEnrollCourse();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedTopics, setExpandedTopics] = useState<Set<number>>(new Set());
   const [expandedLessons, setExpandedLessons] = useState<Set<number>>(new Set());
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
+  const [enrollError, setEnrollError] = useState<string | null>(null);
+
+  const instructorName = useMemo(() => course?.instructor || 'SkillForge Faculty', [course?.instructor]);
+  const linkedinUrl = normalizeExternalUrl(course?.instructorLinkedin);
+  const githubUrl = normalizeExternalUrl(course?.instructorGithub);
+  const existingEnrollment = useMemo(() => {
+    if (!courseId) return null;
+    return (enrollments as Enrollment[]).find((entry) => String(entry.courseId) === String(courseId));
+  }, [courseId, enrollments]);
+  const isStudent = user?.role === 'student';
+  const canAccessContent = !isStudent || !!existingEnrollment;
 
   useEffect(() => {
+    if (!courseId) {
+      return;
+    }
+    if (isStudent && !existingEnrollment) {
+      setLoading(false);
+      setTopics([]);
+      return;
+    }
     loadTopics();
-  }, [courseId]);
+  }, [courseId, existingEnrollment, isStudent]);
+
+  const handleEnrollNow = () => {
+    if (!courseId) return;
+    setEnrollError(null);
+    enrollCourse(String(courseId), {
+      onSuccess: () => {
+        navigate(`/course-content/${courseId}`);
+      },
+      onError: (error: any) => {
+        const message = error?.response?.data?.error || error?.response?.data?.message || 'Enrollment failed';
+        setEnrollError(message);
+      },
+    });
+  };
 
   const loadTopics = async () => {
     setLoading(true);
@@ -102,10 +144,38 @@ export const CourseContent: FC = () => {
     setExpandedLessons(newExpanded);
   };
 
-  if (loading) {
+  if (loading || (isStudent && enrollmentsLoading)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100">
         <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      </div>
+    );
+  }
+
+  if (isStudent && !canAccessContent) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 p-8">
+        <div className="max-w-3xl mx-auto">
+          <Card className="border-0 shadow-lg bg-white">
+            <CardHeader>
+              <CardTitle className="text-2xl text-slate-900">Enrollment Required</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-slate-600">
+                You need to enroll in this course before accessing course content.
+              </p>
+              {enrollError && <p className="text-sm text-red-600">{enrollError}</p>}
+              <div className="flex gap-3 flex-wrap">
+                <Button onClick={handleEnrollNow} disabled={enrolling}>
+                  {enrolling ? 'Enrolling...' : 'Enroll Now'}
+                </Button>
+                <Button variant="outline" onClick={() => navigate(`/courses/${courseId}`)}>
+                  View Course Details
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -120,6 +190,48 @@ export const CourseContent: FC = () => {
           <p className="text-slate-600 text-lg">Study materials organized by topics and lessons</p>
           <p className="text-sm text-slate-700">Course ID: <span className="font-semibold">{courseId}</span></p>
         </div>
+
+        {course && (
+          <Card className="mb-8 border-0 border-l-4 border-l-blue-500 bg-white shadow-lg">
+            <CardHeader className="border-b border-blue-200 bg-gradient-to-r from-blue-50 to-transparent">
+              <CardTitle className="text-2xl text-slate-900">Instructor Information</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="flex flex-col gap-5 md:flex-row md:items-start">
+                {course.instructorAvatar ? (
+                  <img src={course.instructorAvatar} alt={instructorName} className="h-24 w-24 rounded-2xl border border-slate-200 object-cover shadow-sm" />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-2xl font-bold text-white shadow-sm">
+                    {getProfileInitials(instructorName)}
+                  </div>
+                )}
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-slate-900">{instructorName}</h2>
+                    <p className="text-sm text-slate-600">Assigned instructor for this course</p>
+                  </div>
+                  {course.instructorBio && <p className="text-sm leading-6 text-slate-700">{course.instructorBio}</p>}
+                  {(linkedinUrl || githubUrl) && (
+                    <div className="flex flex-wrap gap-3">
+                      {linkedinUrl && (
+                        <a href={linkedinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100">
+                          <Linkedin className="h-4 w-4" />
+                          LinkedIn
+                        </a>
+                      )}
+                      {githubUrl && (
+                        <a href={githubUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">
+                          <Github className="h-4 w-4" />
+                          GitHub
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {topics.length === 0 ? (
           <Card className="border-0 shadow-lg text-center py-16">

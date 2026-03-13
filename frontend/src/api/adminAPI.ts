@@ -15,6 +15,8 @@ export const adminAPI = {
     apiClient.post('/api/admin/create-user', { name, email, role }),
   deleteUser: (userId: number | string) =>
     apiClient.delete(`/api/admin/users/${userId}`),
+  deleteInstructor: (instructorId: number | string) =>
+    apiClient.delete(`/api/admin/instructor/${instructorId}`),
   assignCourseAdmin: (userId: number | string, courseId: number | string) =>
     apiClient.post(`/api/admin/assign-course-admin/${userId}/${courseId}`),
   getDoubts: (courseId?: number | string) =>

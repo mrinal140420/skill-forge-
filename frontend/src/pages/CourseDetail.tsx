@@ -101,7 +101,7 @@ export const CourseDetail: FC = () => {
 
           {user ? (
             existingEnrollment ? (
-              <Button size="lg" className="gap-2" onClick={() => navigate(`/learn/${course.id}/${existingEnrollment.currentModuleId}`)}>
+              <Button size="lg" className="gap-2" onClick={() => navigate(`/course-content/${course.id}`)}>
                 <CheckCircle2 className="h-5 w-5" />
                 Already Enrolled — Continue Learning
               </Button>
@@ -219,7 +219,7 @@ export const CourseDetail: FC = () => {
                 <p className="text-muted-foreground mb-1">Students</p>
                 <p className="font-semibold">{course.students.toLocaleString()}</p>
               </div>
-              <Button className="w-full mt-4" onClick={existingEnrollment ? () => navigate(`/learn/${course.id}/${existingEnrollment.currentModuleId}`) : handleEnroll} disabled={isPending && !existingEnrollment}>
+              <Button className="w-full mt-4" onClick={existingEnrollment ? () => navigate(`/course-content/${course.id}`) : handleEnroll} disabled={isPending && !existingEnrollment}>
                 {existingEnrollment ? 'Continue Learning' : isPending ? 'Enrolling...' : enrollSuccess ? 'Enrolled!' : 'Enroll Now'}
               </Button>
             </CardContent>

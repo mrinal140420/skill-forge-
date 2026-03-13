@@ -5,10 +5,12 @@ import com.google.gson.reflect.TypeToken;
 import com.skillforge.dto.CourseDTO;
 import com.skillforge.dto.ProgressDTO;
 import com.skillforge.entity.Course;
+import com.skillforge.entity.CourseAdminAssignment;
 import com.skillforge.entity.Enrollment;
 import com.skillforge.entity.Progress;
 import com.skillforge.entity.QuizAttempt;
 import com.skillforge.entity.User;
+import com.skillforge.repository.CourseAdminAssignmentRepository;
 import com.skillforge.repository.CourseRepository;
 import com.skillforge.repository.EnrollmentRepository;
 import com.skillforge.repository.ProgressRepository;
@@ -47,6 +49,9 @@ public class ProgressService {
 
     @Autowired
     private CourseRepository courseRepository;
+
+    @Autowired
+    private CourseAdminAssignmentRepository courseAdminAssignmentRepository;
 
     private static final Gson gson = new Gson();
 
@@ -274,6 +279,8 @@ public class ProgressService {
                 gson.fromJson(course.getSyllabusModules(), moduleListType) : List.of();
         List<Long> prerequisites = course.getPrerequisites() != null ?
                 gson.fromJson(course.getPrerequisites(), longListType) : List.of();
+        List<CourseAdminAssignment> assignments = courseAdminAssignmentRepository.findByCourseId(course.getId());
+        CourseAdminAssignment primaryAssignment = assignments.isEmpty() ? null : assignments.get(0);
 
         return CourseDTO.builder()
                 .id(course.getId())
@@ -285,6 +292,12 @@ public class ProgressService {
                 .rating(course.getRating())
                 .thumbnailUrl(course.getThumbnailUrl())
                 .description(course.getDescription())
+                .instructor(primaryAssignment != null ? primaryAssignment.getAdmin().getName() : "SkillForge Faculty")
+                .assignedInstructorId(primaryAssignment != null ? primaryAssignment.getAdmin().getId() : null)
+                .instructorAvatar(primaryAssignment != null ? primaryAssignment.getAdmin().getAvatar() : null)
+                .instructorBio(primaryAssignment != null ? primaryAssignment.getAdmin().getBio() : null)
+                .instructorLinkedin(primaryAssignment != null ? primaryAssignment.getAdmin().getLinkedin() : null)
+                .instructorGithub(primaryAssignment != null ? primaryAssignment.getAdmin().getGithub() : null)
                 .tags(tags)
                 .syllabusModules(modules)
                 .prerequisites(prerequisites)

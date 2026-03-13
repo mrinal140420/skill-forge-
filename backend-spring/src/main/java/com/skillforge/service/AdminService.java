@@ -175,6 +175,17 @@ public class AdminService {
                 })
                 .toList();
 
+                List<Map<String, Object>> recentCourses = uniqueManagedCourses.stream()
+                                .limit(5)
+                                .map(course -> {
+                                        Map<String, Object> item = new HashMap<>();
+                                        item.put("id", course.getId());
+                                        item.put("title", course.getTitle());
+                                        item.put("status", course.getStatus() != null ? course.getStatus().name() : "DRAFT");
+                                        return item;
+                                })
+                                .toList();
+
         Map<Long, List<Enrollment>> enrollmentsByStudent = scopedEnrollments.stream()
                 .collect(Collectors.groupingBy(e -> e.getUser().getId(), LinkedHashMap::new, Collectors.toList()));
 
@@ -211,7 +222,7 @@ public class AdminService {
         summary.put("averageProgress", Math.round(avgProgress * 100.0) / 100.0);
         summary.put("pendingDoubts", pendingDoubts);
         summary.put("quizAttempts", quizAttempts);
-        summary.put("recentCourses", uniqueManagedCourses.stream().limit(5).toList());
+                summary.put("recentCourses", recentCourses);
         summary.put("assignedCourseDetails", assignedCourseDetails);
         summary.put("enrolledStudentDetails", enrolledStudentDetails);
         return summary;
@@ -317,6 +328,18 @@ public class AdminService {
         userRepository.deleteById(userId);
         log.info("Deleted user: {} ({})", user.getName(), user.getEmail());
     }
+
+        public void deleteInstructor(Long instructorId) {
+                User user = userRepository.findById(instructorId)
+                                .orElseThrow(() -> new IllegalArgumentException("Instructor not found"));
+
+                if (user.getRole() != User.UserRole.COURSE_ADMIN) {
+                        throw new IllegalArgumentException("Provided user is not an instructor");
+                }
+
+                userRepository.deleteById(instructorId);
+                log.info("Deleted instructor: {} ({})", user.getName(), user.getEmail());
+        }
     
     /**
      * Create a new student user
@@ -426,6 +449,10 @@ public class AdminService {
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
+                user.getAvatar(),
+                user.getBio(),
+                user.getLinkedin(),
+                user.getGithub(),
                 user.getRole().toString(),
                 user.getCreatedAt(),
                 user.getLastActivityAt(),

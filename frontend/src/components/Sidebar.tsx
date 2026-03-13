@@ -65,14 +65,14 @@ export const Sidebar: FC = () => {
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={toggleSidebar}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-16 left-0 z-40 border-r border-blue-200 bg-gradient-to-b from-blue-50 via-slate-50 to-slate-100 transition-all duration-300 lg:sticky lg:top-16 lg:inset-y-auto lg:self-stretch lg:min-h-[calc(100vh-64px)] lg:block ${
+        className={`fixed left-0 top-16 bottom-0 z-30 overflow-y-auto border-r border-blue-200 bg-gradient-to-b from-blue-50 via-slate-50 to-slate-100 transition-all duration-300 lg:sticky lg:top-16 lg:self-start lg:h-[calc(100vh-64px)] lg:block ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         } ${isCollapsed ? 'w-20' : 'w-64'}`}
       >

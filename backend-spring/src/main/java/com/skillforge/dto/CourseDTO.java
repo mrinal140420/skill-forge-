@@ -28,6 +28,12 @@ public class CourseDTO {
     private Double rating;
     private String thumbnailUrl;
     private String description;
+    private String instructor;
+    private Long assignedInstructorId;
+    private String instructorAvatar;
+    private String instructorBio;
+    private String instructorLinkedin;
+    private String instructorGithub;
     
     @JsonProperty("tags")
     private List<String> tags;
@@ -47,7 +53,8 @@ public class CourseDTO {
 
     public CourseDTO(Long id, String title, String slug, String category, String level, String status,
                      Integer durationHours, Double rating, String thumbnailUrl, String description,
-                     List<String> tags, List<ModuleDTO> syllabusModules, List<Long> prerequisites,
+                     String instructor, Long assignedInstructorId, String instructorAvatar, String instructorBio,
+                     String instructorLinkedin, String instructorGithub, List<String> tags, List<ModuleDTO> syllabusModules, List<Long> prerequisites,
                      LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.title = title;
@@ -59,6 +66,12 @@ public class CourseDTO {
         this.rating = rating;
         this.thumbnailUrl = thumbnailUrl;
         this.description = description;
+        this.instructor = instructor;
+        this.assignedInstructorId = assignedInstructorId;
+        this.instructorAvatar = instructorAvatar;
+        this.instructorBio = instructorBio;
+        this.instructorLinkedin = instructorLinkedin;
+        this.instructorGithub = instructorGithub;
         this.tags = tags;
         this.syllabusModules = syllabusModules;
         this.prerequisites = prerequisites;
@@ -147,6 +160,54 @@ public class CourseDTO {
         this.description = description;
     }
 
+    public String getInstructor() {
+        return instructor;
+    }
+
+    public void setInstructor(String instructor) {
+        this.instructor = instructor;
+    }
+
+    public Long getAssignedInstructorId() {
+        return assignedInstructorId;
+    }
+
+    public void setAssignedInstructorId(Long assignedInstructorId) {
+        this.assignedInstructorId = assignedInstructorId;
+    }
+
+    public String getInstructorAvatar() {
+        return instructorAvatar;
+    }
+
+    public void setInstructorAvatar(String instructorAvatar) {
+        this.instructorAvatar = instructorAvatar;
+    }
+
+    public String getInstructorBio() {
+        return instructorBio;
+    }
+
+    public void setInstructorBio(String instructorBio) {
+        this.instructorBio = instructorBio;
+    }
+
+    public String getInstructorLinkedin() {
+        return instructorLinkedin;
+    }
+
+    public void setInstructorLinkedin(String instructorLinkedin) {
+        this.instructorLinkedin = instructorLinkedin;
+    }
+
+    public String getInstructorGithub() {
+        return instructorGithub;
+    }
+
+    public void setInstructorGithub(String instructorGithub) {
+        this.instructorGithub = instructorGithub;
+    }
+
     public List<String> getTags() {
         return tags;
     }
@@ -203,6 +264,12 @@ public class CourseDTO {
         private Double rating;
         private String thumbnailUrl;
         private String description;
+        private String instructor;
+        private Long assignedInstructorId;
+        private String instructorAvatar;
+        private String instructorBio;
+        private String instructorLinkedin;
+        private String instructorGithub;
         private List<String> tags;
         private List<ModuleDTO> syllabusModules;
         private List<Long> prerequisites;
@@ -259,6 +326,36 @@ public class CourseDTO {
             return this;
         }
 
+        public CourseDTOBuilder instructor(String instructor) {
+            this.instructor = instructor;
+            return this;
+        }
+
+        public CourseDTOBuilder assignedInstructorId(Long assignedInstructorId) {
+            this.assignedInstructorId = assignedInstructorId;
+            return this;
+        }
+
+        public CourseDTOBuilder instructorAvatar(String instructorAvatar) {
+            this.instructorAvatar = instructorAvatar;
+            return this;
+        }
+
+        public CourseDTOBuilder instructorBio(String instructorBio) {
+            this.instructorBio = instructorBio;
+            return this;
+        }
+
+        public CourseDTOBuilder instructorLinkedin(String instructorLinkedin) {
+            this.instructorLinkedin = instructorLinkedin;
+            return this;
+        }
+
+        public CourseDTOBuilder instructorGithub(String instructorGithub) {
+            this.instructorGithub = instructorGithub;
+            return this;
+        }
+
         public CourseDTOBuilder tags(List<String> tags) {
             this.tags = tags;
             return this;
@@ -286,7 +383,7 @@ public class CourseDTO {
 
         public CourseDTO build() {
                 return new CourseDTO(id, title, slug, category, level, status, durationHours, rating,
-                    thumbnailUrl, description, tags, syllabusModules, prerequisites,
+                    thumbnailUrl, description, instructor, assignedInstructorId, instructorAvatar, instructorBio, instructorLinkedin, instructorGithub, tags, syllabusModules, prerequisites,
                     createdAt, updatedAt);
         }
     }

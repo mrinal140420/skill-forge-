@@ -188,6 +188,85 @@ public class AdminController {
                     .body(new ErrorResponse("Failed to create instructor"));
         }
     }
+
+    @PostMapping("/create-student")
+    @Operation(summary = "Create new student",
+            description = "Create a new student user (super admin only)")
+    public ResponseEntity<?> createStudent(@RequestBody com.skillforge.dto.CreateInstructorRequestDTO request) {
+        try {
+            User user = getCurrentUser();
+            if (user == null || !authorizationUtil.isSuperAdmin(user)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ErrorResponse("Forbidden - super admin access required"));
+            }
+
+            if (request.getName() == null || request.getName().isBlank()) {
+                return ResponseEntity.badRequest().body(new ErrorResponse("Name cannot be empty"));
+            }
+            if (request.getEmail() == null || request.getEmail().isBlank()) {
+                return ResponseEntity.badRequest().body(new ErrorResponse("Email cannot be empty"));
+            }
+
+            User created = adminService.createStudent(request.getName(), request.getEmail());
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", created.getId());
+            response.put("name", created.getName());
+            response.put("email", created.getEmail());
+            response.put("message", "Student created successfully");
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (IllegalArgumentException e) {
+            log.warn("Student creation validation failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error creating student", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Failed to create student"));
+        }
+    }
+
+    @DeleteMapping("/users/{userId}")
+    @Operation(summary = "Delete user",
+            description = "Delete a user by ID (super admin only; cannot delete super admin)")
+    public ResponseEntity<?> deleteUser(@PathVariable Long userId) {
+        try {
+            User user = getCurrentUser();
+            if (user == null || !authorizationUtil.isSuperAdmin(user)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ErrorResponse("Forbidden - super admin access required"));
+            }
+
+            adminService.deleteUser(userId);
+            return ResponseEntity.ok(new SuccessResponse("User deleted successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error deleting user", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Failed to delete user"));
+        }
+    }
+
+    @DeleteMapping("/instructor/{instructorId}")
+    @Operation(summary = "Delete instructor",
+            description = "Delete instructor by ID (super admin only)")
+    public ResponseEntity<?> deleteInstructor(@PathVariable Long instructorId) {
+        try {
+            User user = getCurrentUser();
+            if (user == null || !authorizationUtil.isSuperAdmin(user)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ErrorResponse("Forbidden - super admin access required"));
+            }
+
+            adminService.deleteInstructor(instructorId);
+            return ResponseEntity.ok(new SuccessResponse("Instructor deleted successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error deleting instructor", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Failed to delete instructor"));
+        }
+    }
     
     /**
      * POST /api/admin/assign-course-admin/{userId}/{courseId}

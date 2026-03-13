@@ -22,11 +22,17 @@ export const AdminUsers: FC = () => {
   const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [showCredentials, setShowCredentials] = useState<Record<number, boolean>>({});
+  const [showCredentials, setShowCredentials] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Create instructor form
-  const [createForm, setCreateForm] = useState({
+  const [instructorForm, setInstructorForm] = useState({
+    name: '',
+    email: '',
+  });
+
+  // Create student form
+  const [studentForm, setStudentForm] = useState({
     name: '',
     email: '',
   });
@@ -68,9 +74,9 @@ export const AdminUsers: FC = () => {
     setSuccess(null);
 
     try {
-      const res = await adminAPI.createInstructor(createForm.name, createForm.email);
+      const res = await adminAPI.createInstructor(instructorForm.name, instructorForm.email);
       setCreatedInstructor(res.data);
-      setCreateForm({ name: '', email: '' });
+      setInstructorForm({ name: '', email: '' });
       setSuccess(`Instructor created! Share credentials securely.`);
       
       // Reload users list
@@ -101,8 +107,8 @@ export const AdminUsers: FC = () => {
     setSuccess(null);
 
     try {
-      const res = await adminAPI.createStudent(createForm.name, createForm.email);
-      setCreateForm({ name: '', email: '' });
+      const res = await adminAPI.createStudent(studentForm.name, studentForm.email);
+      setStudentForm({ name: '', email: '' });
       setSuccess(`Student account created! Email: ${res.data.email}`);
       
       // Reload users list
@@ -120,10 +126,10 @@ export const AdminUsers: FC = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const togglePasswordVisibility = (id: number) => {
+  const togglePasswordVisibility = (key: string) => {
     setShowCredentials((prev) => ({
       ...prev,
-      [id]: !prev[id],
+      [key]: !prev[key],
     }));
   };
 
@@ -181,8 +187,8 @@ export const AdminUsers: FC = () => {
               <Input
                 id="instrName"
                 placeholder="e.g., John Doe"
-                value={createForm.name}
-                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                value={instructorForm.name}
+                onChange={(e) => setInstructorForm((f) => ({ ...f, name: e.target.value }))}
                 required
                 className="mt-1"
               />
@@ -193,8 +199,8 @@ export const AdminUsers: FC = () => {
                 id="instrEmail"
                 type="email"
                 placeholder="e.g., john@skillforge.com"
-                value={createForm.email}
-                onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+                value={instructorForm.email}
+                onChange={(e) => setInstructorForm((f) => ({ ...f, email: e.target.value }))}
                 required
                 className="mt-1"
               />
@@ -257,16 +263,16 @@ export const AdminUsers: FC = () => {
                 <Label className="text-xs text-muted-foreground">Temporary Password</Label>
                 <div className="flex items-center gap-2">
                   <span className="font-mono bg-slate-100 px-3 py-2 rounded text-sm flex-1 tracking-wider">
-                    {showCredentials['password']
+                    {showCredentials.password
                       ? createdInstructor.generatedPassword
                       : '••••••••••••'}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => togglePasswordVisibility(1)}
+                    onClick={() => togglePasswordVisibility('password')}
                   >
-                    {showCredentials['password'] ? (
+                    {showCredentials.password ? (
                       <EyeOff className="h-4 w-4" />
                     ) : (
                       <Eye className="h-4 w-4" />
@@ -317,8 +323,8 @@ export const AdminUsers: FC = () => {
               <Input
                 id="studName"
                 placeholder="e.g., Alice Johnson"
-                value={createForm.name}
-                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                value={studentForm.name}
+                onChange={(e) => setStudentForm((f) => ({ ...f, name: e.target.value }))}
                 required
                 className="mt-1"
               />
@@ -329,8 +335,8 @@ export const AdminUsers: FC = () => {
                 id="studEmail"
                 type="email"
                 placeholder="e.g., alice@skillforge.com"
-                value={createForm.email}
-                onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+                value={studentForm.email}
+                onChange={(e) => setStudentForm((f) => ({ ...f, email: e.target.value }))}
                 required
                 className="mt-1"
               />
@@ -460,7 +466,21 @@ export const AdminUsers: FC = () => {
                         size="sm"
                         variant="destructive"
                         className="text-xs"
-                        onClick={() => handleDeleteUser(u.id)}
+                        onClick={async () => {
+                          if (!confirm('Are you sure you want to delete this user? This cannot be undone.')) return;
+                          try {
+                            if (u.role === 'COURSE_ADMIN') {
+                              await adminAPI.deleteInstructor(u.id);
+                              setSuccess('Instructor deleted successfully!');
+                            } else {
+                              await adminAPI.deleteUser(u.id);
+                              setSuccess('User deleted successfully!');
+                            }
+                            await load();
+                          } catch (err: any) {
+                            setError(err.response?.data?.error || 'Failed to delete user');
+                          }
+                        }}
                       >
                         Delete
                       </Button>

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { readScopedSettings, writeScopedSettings } from '@/lib/settingsStorage';
 import { DEFAULT_PLATFORM_BRANDING, PLATFORM_BRANDING_STORAGE_KEY, writePlatformBranding } from '@/lib/platformBranding';
 import { useAuthStore } from '@/stores/authStore';
+import apiClient from '@/api/apiClient';
 
 type AdminSettingsState = {
   platformName: string;
@@ -56,6 +57,8 @@ export const AdminSettingsPage: FC = () => {
 
   const [settings, setSettings] = useState<AdminSettingsState>(() => readScopedSettings(storageKey, defaultSettings));
   const [message, setMessage] = useState('');
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const saveSettings = () => {
     writeScopedSettings(storageKey, settings);
@@ -91,6 +94,24 @@ export const AdminSettingsPage: FC = () => {
     reader.readAsDataURL(file);
   };
 
+  const changePassword = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setMessage('All password fields are required.');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const { data } = await apiClient.post('/api/auth/change-password', passwordForm);
+      setMessage(data?.message || 'Password changed successfully.');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      setMessage(error?.response?.data?.error || 'Failed to change password.');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   return (
     <div className="space-y-8 p-8 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 min-h-screen">
       <div>
@@ -100,12 +121,13 @@ export const AdminSettingsPage: FC = () => {
       </div>
 
       <Tabs defaultValue="platform" className="space-y-6">
-        <TabsList className="grid grid-cols-5 w-full max-w-5xl">
+        <TabsList className="grid grid-cols-6 w-full max-w-6xl">
           <TabsTrigger value="platform">Platform</TabsTrigger>
           <TabsTrigger value="users">Users & Roles</TabsTrigger>
           <TabsTrigger value="courses">Courses</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
 
         <TabsContent value="platform">
@@ -241,6 +263,50 @@ export const AdminSettingsPage: FC = () => {
               <label className="flex items-center gap-3 text-sm"><input className={checkboxClassName} type="checkbox" checked={settings.googleOAuthEnabled} onChange={(e) => setSettings((current) => ({ ...current, googleOAuthEnabled: e.target.checked }))} />Google OAuth Enabled</label>
               <label className="flex items-center gap-3 text-sm"><input className={checkboxClassName} type="checkbox" checked={settings.githubOAuthEnabled} onChange={(e) => setSettings((current) => ({ ...current, githubOAuthEnabled: e.target.checked }))} />GitHub OAuth Enabled</label>
               <Button onClick={saveSettings}>Save Integration Settings</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="security">
+          <Card>
+            <CardHeader>
+              <CardTitle>Security</CardTitle>
+              <CardDescription>Change your super admin password securely.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label>Current Password</Label>
+                  <Input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm((current) => ({ ...current, currentPassword: e.target.value }))}
+                    placeholder="Enter current password"
+                  />
+                </div>
+                <div>
+                  <Label>New Password</Label>
+                  <Input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm((current) => ({ ...current, newPassword: e.target.value }))}
+                    placeholder="Minimum 8 characters"
+                  />
+                </div>
+                <div>
+                  <Label>Confirm New Password</Label>
+                  <Input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm((current) => ({ ...current, confirmPassword: e.target.value }))}
+                    placeholder="Re-enter new password"
+                  />
+                </div>
+              </div>
+              <Button onClick={changePassword} disabled={changingPassword}>
+                {changingPassword ? 'Changing Password...' : 'Change Password'}
+              </Button>
+              <p className="text-xs text-slate-500">Signed in as: {user?.email || 'Unknown user'}</p>
             </CardContent>
           </Card>
         </TabsContent>

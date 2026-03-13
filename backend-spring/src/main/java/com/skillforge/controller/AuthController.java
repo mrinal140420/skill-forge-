@@ -1,8 +1,10 @@
 package com.skillforge.controller;
 
 import com.skillforge.dto.AuthResponseDTO;
+import com.skillforge.dto.ChangePasswordRequestDTO;
 import com.skillforge.dto.LoginRequestDTO;
 import com.skillforge.dto.RegisterRequestDTO;
+import com.skillforge.dto.UpdateProfileRequestDTO;
 import com.skillforge.dto.UserDTO;
 import com.skillforge.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -156,6 +158,74 @@ public class AuthController {
         }
     }
 
+    @PutMapping("/me")
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Update current user",
+            description = "Updates authenticated user profile fields")
+    public ResponseEntity<?> updateCurrentUser(@RequestBody UpdateProfileRequestDTO request) {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ErrorResponse("No token provided"));
+            }
+
+            Long userId = null;
+            if (auth.getPrincipal() instanceof Long) {
+                userId = (Long) auth.getPrincipal();
+            }
+
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ErrorResponse("Invalid token"));
+            }
+
+            UserDTO user = authService.updateCurrentUser(userId, request);
+            return ResponseEntity.ok(user);
+        } catch (IllegalArgumentException e) {
+            log.warn("Update current user failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Update current user error", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Failed to update user"));
+        }
+    }
+
+    @PostMapping("/change-password")
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Change password",
+            description = "Changes password for authenticated user after validating current password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequestDTO request) {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ErrorResponse("No token provided"));
+            }
+
+            Long userId = null;
+            if (auth.getPrincipal() instanceof Long) {
+                userId = (Long) auth.getPrincipal();
+            }
+
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ErrorResponse("Invalid token"));
+            }
+
+            authService.changePassword(userId, request);
+            return ResponseEntity.ok(new SuccessResponse("Password changed successfully"));
+        } catch (IllegalArgumentException e) {
+            log.warn("Change password failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Change password error", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Failed to change password"));
+        }
+    }
+
     /**
      * Error response wrapper
      */
@@ -164,6 +234,14 @@ public class AuthController {
 
         public ErrorResponse(String error) {
             this.error = error;
+        }
+    }
+
+    public static class SuccessResponse {
+        public String message;
+
+        public SuccessResponse(String message) {
+            this.message = message;
         }
     }
 }

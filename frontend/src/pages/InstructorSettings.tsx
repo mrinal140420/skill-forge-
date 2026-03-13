@@ -8,6 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuthStore } from '@/stores/authStore';
 import { readScopedSettings, writeScopedSettings } from '@/lib/settingsStorage';
+import { getInstructorSettingsStorageKey } from '@/lib/instructorProfile';
+import apiClient from '@/api/apiClient';
 
 type InstructorSettingsState = {
   name: string;
@@ -36,13 +38,13 @@ const checkboxClassName = 'h-4 w-4 rounded border-slate-300';
 export const InstructorSettingsPage: FC = () => {
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
-  const storageKey = `instructor-settings:${user?.id || 'guest'}`;
+  const storageKey = getInstructorSettingsStorageKey(user?.id);
   const defaultSettings: InstructorSettingsState = useMemo(() => ({
     name: user?.name || '',
     profilePhoto: user?.avatar || '',
-    bio: '',
-    linkedin: '',
-    github: '',
+    bio: user?.bio || '',
+    linkedin: user?.linkedin || '',
+    github: user?.github || '',
     defaultCourseVisibility: 'DRAFT',
     defaultQuizPassingPercentage: 60,
     defaultQuizTimeLimit: 30,
@@ -62,13 +64,34 @@ export const InstructorSettingsPage: FC = () => {
   const [settings, setSettings] = useState<InstructorSettingsState>(() => readScopedSettings(storageKey, defaultSettings));
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
-  const saveSettings = () => {
+  const saveSettings = async () => {
     writeScopedSettings(storageKey, settings);
-    if (user) {
-      setUser({ ...user, name: settings.name, avatar: settings.profilePhoto || user.avatar });
+    setSaving(true);
+    setMessage('');
+
+    try {
+      const { data } = await apiClient.put('/api/auth/me', {
+        name: settings.name,
+        email: user?.email,
+        avatar: settings.profilePhoto,
+        bio: settings.bio,
+        linkedin: settings.linkedin,
+        github: settings.github,
+      });
+
+      setUser({
+        ...data,
+        role: user?.role || data.role,
+      });
+      setMessage('Instructor profile saved successfully.');
+    } catch (error: any) {
+      setMessage(error?.response?.data?.error || 'Failed to save instructor profile.');
+    } finally {
+      setSaving(false);
     }
-    setMessage('Instructor settings saved locally.');
   };
 
   const handleProfilePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,13 +102,27 @@ export const InstructorSettingsPage: FC = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleChangePassword = () => {
-    if (!passwordForm.newPassword || passwordForm.newPassword !== passwordForm.confirmPassword) {
+  const handleChangePassword = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setMessage('All password fields are required.');
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setMessage('New password and confirmation must match.');
       return;
     }
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    setMessage('Password change is prepared in UI. Connect a backend endpoint to persist it.');
+
+    setChangingPassword(true);
+    setMessage('');
+    try {
+      const { data } = await apiClient.post('/api/auth/change-password', passwordForm);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setMessage(data?.message || 'Password changed successfully.');
+    } catch (error: any) {
+      setMessage(error?.response?.data?.error || 'Failed to change password.');
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   const logoutAllSessions = () => {
@@ -152,7 +189,7 @@ export const InstructorSettingsPage: FC = () => {
                   <Input value={settings.github} onChange={(e) => setSettings((current) => ({ ...current, github: e.target.value }))} placeholder="https://github.com/..." />
                 </div>
               </div>
-              <Button onClick={saveSettings}>Save Profile</Button>
+              <Button onClick={saveSettings} disabled={saving}>{saving ? 'Saving...' : 'Save Profile'}</Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -190,7 +227,7 @@ export const InstructorSettingsPage: FC = () => {
                   </label>
                 </div>
               </div>
-              <Button onClick={saveSettings}>Save Teaching Defaults</Button>
+              <Button onClick={saveSettings} disabled={saving}>{saving ? 'Saving...' : 'Save Teaching Defaults'}</Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -220,7 +257,7 @@ export const InstructorSettingsPage: FC = () => {
                   </label>
                 </div>
               ))}
-              <Button onClick={saveSettings}>Save Notification Settings</Button>
+              <Button onClick={saveSettings} disabled={saving}>{saving ? 'Saving...' : 'Save Notification Settings'}</Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -238,7 +275,9 @@ export const InstructorSettingsPage: FC = () => {
                 <Input type="password" placeholder="Confirm new password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm((current) => ({ ...current, confirmPassword: e.target.value }))} />
               </div>
               <div className="flex gap-3 flex-wrap">
-                <Button onClick={handleChangePassword}>Change Password</Button>
+                <Button onClick={handleChangePassword} disabled={changingPassword}>
+                  {changingPassword ? 'Changing Password...' : 'Change Password'}
+                </Button>
                 <Button variant="outline" onClick={logoutAllSessions}>Logout From All Sessions</Button>
               </div>
               <div className="text-sm text-slate-600">Last login: <span className="font-medium">{user?.lastActivityAt ? new Date(user.lastActivityAt).toLocaleString() : 'Not available'}</span></div>
@@ -276,7 +315,7 @@ export const InstructorSettingsPage: FC = () => {
                   </Select>
                 </div>
               </div>
-              <Button onClick={saveSettings}>Save Appearance</Button>
+              <Button onClick={saveSettings} disabled={saving}>{saving ? 'Saving...' : 'Save Appearance'}</Button>
             </CardContent>
           </Card>
         </TabsContent>

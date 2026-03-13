@@ -50,7 +50,7 @@ export const Navbar: FC = () => {
   };
 
   return (
-    <nav className="sticky top-0 z-40 w-full border-b border-slate-800 bg-[#0f1f54] shadow-sm">
+    <nav className="sticky top-0 z-50 w-full border-b border-slate-800 bg-[#0f1f54] shadow-sm">
       <div className="flex min-h-16 items-center gap-4 px-4 py-3 sm:px-6">
         {/* Logo and Brand */}
         <Link to="/" onClick={handleLogoClick} className="group flex items-center gap-3 rounded-xl px-2 py-1 transition-colors hover:bg-white/5">

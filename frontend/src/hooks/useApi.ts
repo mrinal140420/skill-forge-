@@ -7,6 +7,11 @@ export interface Course {
   title: string;
   description: string;
   instructor: string;
+  assignedInstructorId?: string;
+  instructorAvatar?: string;
+  instructorBio?: string;
+  instructorLinkedin?: string;
+  instructorGithub?: string;
   level: 'beginner' | 'intermediate' | 'advanced';
   duration: number;
   modules: Module[];
@@ -101,6 +106,11 @@ function mapCourse(raw: any): Course {
     title: raw.title || '',
     description: raw.description || '',
     instructor: raw.instructor || 'SkillForge Faculty',
+    assignedInstructorId: raw.assignedInstructorId ? String(raw.assignedInstructorId) : undefined,
+    instructorAvatar: raw.instructorAvatar || '',
+    instructorBio: raw.instructorBio || '',
+    instructorLinkedin: raw.instructorLinkedin || '',
+    instructorGithub: raw.instructorGithub || '',
     level: (raw.level || 'Beginner').toLowerCase() as Course['level'],
     duration: raw.durationHours || raw.duration || 0,
     modules,

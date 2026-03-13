@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { useCourses } from '@/hooks/useApi';
 import { Search, Star, Loader2 } from 'lucide-react';
+import { getProfileInitials } from '@/lib/instructorProfile';
 
 export const Courses: FC = () => {
   const [filters, setFilters] = useState({
@@ -116,14 +117,29 @@ export const Courses: FC = () => {
               No courses found
             </div>
           ) : (
-            courses.map((course) => (
+            courses.map((course) => {
+              const instructorName = course.instructor;
+
+              return (
               <Card key={course.id} className="h-full hover:shadow-xl transition-all border-slate-200 bg-white shadow-md hover:border-blue-400 overflow-hidden group">
                   <div className="h-1 bg-gradient-to-r from-blue-600 to-purple-600"></div>
                   <CardHeader>
                     <div className="flex items-start justify-between mb-2 gap-2">
                       <div className="flex-1">
                         <CardTitle className="line-clamp-2 text-slate-900">{course.title}</CardTitle>
-                        <p className="text-sm text-slate-600 mt-1">{course.instructor}</p>
+                        <div className="mt-2 flex items-center gap-3">
+                          {course.instructorAvatar ? (
+                            <img src={course.instructorAvatar} alt={instructorName} className="h-10 w-10 rounded-full border border-slate-200 object-cover" />
+                          ) : (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-xs font-bold text-white">
+                              {getProfileInitials(instructorName)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-700 truncate">{instructorName}</p>
+                            {course.instructorBio && <p className="text-xs text-slate-500 line-clamp-1">{course.instructorBio}</p>}
+                          </div>
+                        </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <Badge variant={course.level === 'advanced' ? 'default' : 'secondary'} className="bg-blue-600">
@@ -175,7 +191,7 @@ export const Courses: FC = () => {
                     </div>
                   </CardContent>
                 </Card>
-            ))
+            );})
           )}
         </div>
       </div>

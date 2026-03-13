@@ -7,6 +7,9 @@ interface User {
   email: string;
   name: string;
   avatar?: string;
+  bio?: string;
+  linkedin?: string;
+  github?: string;
   role: 'student' | 'instructor' | 'admin';
   createdAt?: string;
   lastActivityAt?: string;

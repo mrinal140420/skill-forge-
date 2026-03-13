@@ -17,6 +17,10 @@ public class UserDTO {
     private Long id;
     private String name;
     private String email;
+    private String avatar;
+    private String bio;
+    private String linkedin;
+    private String github;
     private String role;  // STUDENT, COURSE_ADMIN, or SUPER_ADMIN
     private LocalDateTime createdAt;
     private LocalDateTime lastActivityAt;
@@ -24,10 +28,14 @@ public class UserDTO {
     
     public UserDTO() {}
     
-    public UserDTO(Long id, String name, String email, String role, LocalDateTime createdAt, LocalDateTime lastActivityAt, LocalDateTime updatedAt) {
+    public UserDTO(Long id, String name, String email, String avatar, String bio, String linkedin, String github, String role, LocalDateTime createdAt, LocalDateTime lastActivityAt, LocalDateTime updatedAt) {
         this.id = id;
         this.name = name;
         this.email = email;
+        this.avatar = avatar;
+        this.bio = bio;
+        this.linkedin = linkedin;
+        this.github = github;
         this.role = role;
         this.createdAt = createdAt;
         this.lastActivityAt = lastActivityAt;
@@ -56,6 +64,38 @@ public class UserDTO {
     
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
+    public String getLinkedin() {
+        return linkedin;
+    }
+
+    public void setLinkedin(String linkedin) {
+        this.linkedin = linkedin;
+    }
+
+    public String getGithub() {
+        return github;
+    }
+
+    public void setGithub(String github) {
+        this.github = github;
     }
     
     public String getRole() {
@@ -101,6 +141,10 @@ public class UserDTO {
         private Long id;
         private String name;
         private String email;
+        private String avatar;
+        private String bio;
+        private String linkedin;
+        private String github;
         private String role;
         private LocalDateTime createdAt;
         private LocalDateTime lastActivityAt;
@@ -118,6 +162,26 @@ public class UserDTO {
 
         public UserDTOBuilder email(String email) {
             this.email = email;
+            return this;
+        }
+
+        public UserDTOBuilder avatar(String avatar) {
+            this.avatar = avatar;
+            return this;
+        }
+
+        public UserDTOBuilder bio(String bio) {
+            this.bio = bio;
+            return this;
+        }
+
+        public UserDTOBuilder linkedin(String linkedin) {
+            this.linkedin = linkedin;
+            return this;
+        }
+
+        public UserDTOBuilder github(String github) {
+            this.github = github;
             return this;
         }
 
@@ -142,7 +206,7 @@ public class UserDTO {
         }
 
         public UserDTO build() {
-            return new UserDTO(id, name, email, role, createdAt, lastActivityAt, updatedAt);
+            return new UserDTO(id, name, email, avatar, bio, linkedin, github, role, createdAt, lastActivityAt, updatedAt);
         }
     }
 }
