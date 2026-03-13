@@ -32,11 +32,11 @@ export const Dashboard: FC = () => {
   }, [enrollments]);
 
   return (
-    <div className="space-y-8 p-8 bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
+    <div className="space-y-8 p-8 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 min-h-screen">
       {/* Welcome Section */}
-      <div className="space-y-2">
-        <h1 className="text-4xl font-bold text-slate-900">Welcome back, {user?.name}! 👋</h1>
-        <p className="text-slate-600">
+      <div className="space-y-3">
+        <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-900 to-blue-900 bg-clip-text text-transparent">Welcome back, {user?.name}! 👋</h1>
+        <p className="text-slate-600 text-lg">
           You have{' '}
           <span className="font-semibold text-blue-600">
             {stats.activeCourses} active {stats.activeCourses === 1 ? 'course' : 'courses'}
@@ -45,58 +45,58 @@ export const Dashboard: FC = () => {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-slate-200 shadow-md hover:shadow-lg transition-all bg-white">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="border-l-4 border-l-blue-500 shadow-lg hover:shadow-2xl transition-all bg-white hover:scale-105 duration-300">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600 font-medium">Active Courses</p>
-                <p className="text-3xl font-bold text-slate-900">{stats.activeCourses}</p>
+                <p className="text-sm text-slate-600 font-semibold">Active Courses</p>
+                <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent mt-2">{stats.activeCourses}</p>
               </div>
-              <div className="bg-blue-100 p-3 rounded-lg">
-                <BookOpen className="h-6 w-6 text-blue-600" />
+              <div className="bg-gradient-to-br from-blue-100 to-blue-50 p-4 rounded-xl shadow-md">
+                <BookOpen className="h-8 w-8 text-blue-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 shadow-md hover:shadow-lg transition-all bg-white">
+        <Card className="border-l-4 border-l-purple-500 shadow-lg hover:shadow-2xl transition-all bg-white hover:scale-105 duration-300">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600 font-medium">Certificates</p>
-                <p className="text-3xl font-bold text-slate-900">{stats.certificates}</p>
+                <p className="text-sm text-slate-600 font-semibold">Certificates</p>
+                <p className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent mt-2">{stats.certificates}</p>
               </div>
-              <div className="bg-purple-100 p-3 rounded-lg">
-                <Award className="h-6 w-6 text-purple-600" />
+              <div className="bg-gradient-to-br from-purple-100 to-purple-50 p-4 rounded-xl shadow-md">
+                <Award className="h-8 w-8 text-purple-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 shadow-md hover:shadow-lg transition-all bg-white">
+        <Card className="border-l-4 border-l-orange-500 shadow-lg hover:shadow-2xl transition-all bg-white hover:scale-105 duration-300">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600 font-medium">Enrolled Courses</p>
-                <p className="text-3xl font-bold text-slate-900">{(enrollments as Enrollment[]).length}</p>
+                <p className="text-sm text-slate-600 font-semibold">Enrolled Courses</p>
+                <p className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent mt-2">{(enrollments as Enrollment[]).length}</p>
               </div>
-              <div className="bg-orange-100 p-3 rounded-lg">
-                <Flame className="h-6 w-6 text-orange-600" />
+              <div className="bg-gradient-to-br from-orange-100 to-orange-50 p-4 rounded-xl shadow-md">
+                <Flame className="h-8 w-8 text-orange-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 shadow-md hover:shadow-lg transition-all bg-white">
+        <Card className="border-l-4 border-l-green-500 shadow-lg hover:shadow-2xl transition-all bg-white hover:scale-105 duration-300">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600 font-medium">Total Hours</p>
-                <p className="text-3xl font-bold text-slate-900">{stats.totalHours}</p>
+                <p className="text-sm text-slate-600 font-semibold">Total Hours</p>
+                <p className="text-4xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent mt-2">{stats.totalHours}</p>
               </div>
-              <div className="bg-green-100 p-3 rounded-lg">
-                <Target className="h-6 w-6 text-green-600" />
+              <div className="bg-gradient-to-br from-green-100 to-green-50 p-4 rounded-xl shadow-md">
+                <Target className="h-8 w-8 text-green-600" />
               </div>
             </div>
           </CardContent>
@@ -104,35 +104,35 @@ export const Dashboard: FC = () => {
       </div>
 
       {/* Resume Learning */}
-      <Card className="border-slate-200 shadow-md bg-white">
+      <Card className="border-0 shadow-lg bg-gradient-to-r from-white to-blue-50 hover:shadow-xl transition-all">
         <CardHeader>
-          <CardTitle className="text-slate-900">Resume Learning</CardTitle>
-          <CardDescription>Continue where you left off</CardDescription>
+          <CardTitle className="text-2xl bg-gradient-to-r from-slate-900 to-blue-900 bg-clip-text text-transparent">Resume Learning</CardTitle>
+          <CardDescription className="text-base">Continue where you left off</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {activeEnrollments.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
-              <p>No active courses yet</p>
+            <div className="text-center py-12 text-slate-500">
+              <p className="text-lg font-medium mb-4">No active courses yet</p>
               <Link to="/courses">
-                <Button variant="link" className="text-blue-600">Explore Courses</Button>
+                <Button className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-lg">Explore Courses</Button>
               </Link>
             </div>
           ) : (
             activeEnrollments.map((enrollment) => (
-              <div key={enrollment.id} className="space-y-2 border-b border-slate-200 pb-4 last:border-0">
+              <div key={enrollment.id} className="space-y-3 border-l-4 border-l-blue-400 bg-blue-50/30 p-4 rounded-lg hover:bg-blue-50/60 transition-all">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h4 className="font-semibold">{enrollment.courseTitle}</h4>
-                    <p className="text-sm text-muted-foreground">{enrollment.progress}% complete</p>
+                    <h4 className="font-semibold text-slate-900 text-lg">{enrollment.courseTitle}</h4>
+                    <p className="text-sm text-slate-600 font-medium">{enrollment.progress}% complete</p>
                   </div>
-                  <Link to={`/learn/${enrollment.courseId}/${enrollment.currentModuleId}`}>
-                    <Button size="sm" variant="ghost" className="gap-2">
+                  <Link to={`/course-content/${enrollment.courseId}`}>
+                    <Button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-md gap-2">
                       Continue
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   </Link>
                 </div>
-                <Progress value={enrollment.progress} />
+                <Progress value={enrollment.progress} className="h-2 bg-blue-100" />
               </div>
             ))
           )}
@@ -141,20 +141,20 @@ export const Dashboard: FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* AI Recommendations */}
-        <Card>
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-purple-50 hover:shadow-xl transition-all">
           <CardHeader>
-            <CardTitle>Recommended For You</CardTitle>
+            <CardTitle className="text-xl bg-gradient-to-r from-slate-900 to-purple-900 bg-clip-text text-transparent">Recommended For You</CardTitle>
             <CardDescription>Based on your learning patterns</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {recommendedCourses.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No recommendations yet</p>
+              <p className="text-sm text-slate-600 font-medium">No recommendations yet</p>
             ) : (
               recommendedCourses.map((course: any) => (
-                <div key={course.id} className="border-b last:border-0 pb-4 last:pb-0">
-                  <h4 className="font-semibold text-sm mb-1">{course.title}</h4>
-                  <p className="text-xs text-muted-foreground mb-2">{course.reason}</p>
-                  <Badge variant="secondary" className="text-xs">
+                <div key={course.id} className="border-l-4 border-l-purple-400 bg-purple-50/30 p-3 rounded-lg hover:bg-purple-50/60 transition-all">
+                  <h4 className="font-semibold text-slate-900 mb-1">{course.title}</h4>
+                  <p className="text-sm text-slate-600 mb-2">{course.reason}</p>
+                  <Badge className="bg-gradient-to-r from-purple-500 to-purple-600 text-white text-xs">
                     {course.category}
                   </Badge>
                 </div>
@@ -164,36 +164,44 @@ export const Dashboard: FC = () => {
         </Card>
 
         {/* Next Steps */}
-        <Card>
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-cyan-50 hover:shadow-xl transition-all">
           <CardHeader>
-            <CardTitle>Next Steps</CardTitle>
+            <CardTitle className="text-xl bg-gradient-to-r from-slate-900 to-cyan-900 bg-clip-text text-transparent">Next Steps</CardTitle>
             <CardDescription>Your learning roadmap</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="space-y-2">
+            <div className="space-y-3">
               {activeEnrollments.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-slate-600 font-medium">
                   Enroll in a course to see your next steps.
                 </p>
               ) : (
                 activeEnrollments.map((enrollment, idx) => (
-                  <div key={enrollment.id} className="flex gap-3">
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${idx === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} text-sm font-semibold flex-shrink-0`}>
-                      {idx + 1}
+                  <Link
+                    key={enrollment.id}
+                    to={`/course-content/${enrollment.courseId}`}
+                    className="block"
+                  >
+                    <div className="flex gap-3 border-l-4 border-l-cyan-400 bg-cyan-50/30 p-3 rounded-lg hover:bg-cyan-50/60 transition-all">
+                      <div className={`flex items-center justify-center w-9 h-9 rounded-full flex-shrink-0 text-white font-bold shadow-md ${
+                        idx === 0 ? 'bg-gradient-to-br from-cyan-500 to-cyan-600' : 'bg-gradient-to-br from-slate-400 to-slate-500'
+                      }`}>
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {enrollment.progress < 100
+                            ? `Continue ${enrollment.courseTitle}`
+                            : `Take ${enrollment.courseTitle} Exam`}
+                        </p>
+                        <p className="text-xs text-slate-600 font-medium">
+                          {enrollment.progress < 100
+                            ? `${enrollment.progress}% complete`
+                            : 'Ready for certification'}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold">
-                        {enrollment.progress < 100
-                          ? `Continue ${enrollment.courseTitle}`
-                          : `Take ${enrollment.courseTitle} Exam`}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {enrollment.progress < 100
-                          ? `${enrollment.progress}% complete`
-                          : 'Ready for certification'}
-                      </p>
-                    </div>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>

@@ -3,6 +3,7 @@ package com.skillforge.repository;
 import com.skillforge.entity.Enrollment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -25,7 +26,9 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     /**
      * Find all enrollments for a specific user
      * Ordered by enrollment date descending
+     * Eagerly loads the course to avoid LazyInitializationException
      */
+    @EntityGraph(attributePaths = {"course"})
     @Query("SELECT e FROM Enrollment e WHERE e.user.id = :userId ORDER BY e.enrolledAt DESC")
     List<Enrollment> findAllByUserIdOrderByEnrolledAtDesc(@Param("userId") Long userId);
     

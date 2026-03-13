@@ -1,7 +1,7 @@
 import React from 'react';
 import './Footer.css';
 
-export const Footer = () => {
+export const Footer: React.FC = () => {
   return (
     <footer className="skillforge-footer">
       <div className="footer-content">

@@ -90,6 +90,10 @@ public class RecommendationService {
             List<String> enrolledCourseIds = enrollments.stream()
                     .map(e -> e.getCourse().getId().toString())
                     .collect(Collectors.toList());
+                List<String> enrolledTopics = enrollments.stream()
+                    .map(e -> e.getCourse().getCategory() != null ? e.getCourse().getCategory().name() : "General")
+                    .distinct()
+                    .collect(Collectors.toList());
 
             // Get completed modules
             List<Progress> progressList = progressRepository.findAllByUserId(userId);
@@ -112,6 +116,7 @@ public class RecommendationService {
             MLRecommendRequest mlRequest = MLRecommendRequest.builder()
                     .userId(userId.toString())
                     .enrolledCourses(enrolledCourseIds)
+                    .enrolledTopics(enrolledTopics)
                     .completedModules(completedModules)
                     .quizAttempts(quizData)
                     .build();
@@ -211,13 +216,21 @@ public class RecommendationService {
                         Map<String, Object> courseMap = new HashMap<>();
                         courseMap.put("courseId", course.getId());
                         courseMap.put("title", course.getTitle());
+                        courseMap.put("category", course.getCategory() != null ? course.getCategory().name() : "General");
                         courseMap.put("score", course.getRating() != null ? course.getRating() : 0);
                         courseMap.put("reason", "Popular course recommended based on your profile.");
                         return courseMap;
                     })
                     .collect(Collectors.toList());
 
-            List<String> recommendedTopics = Arrays.asList("DSA", "DBMS", "System Design");
+            List<String> recommendedTopics = recommendedCourses.stream()
+                    .map(c -> String.valueOf(c.getOrDefault("category", "General")))
+                    .distinct()
+                    .limit(5)
+                    .collect(Collectors.toList());
+            if (recommendedTopics.isEmpty()) {
+                recommendedTopics = List.of("General");
+            }
 
             log.info("Using fallback recommendations: {} courses", recommendedCourses.size());
 
@@ -229,7 +242,7 @@ public class RecommendationService {
             log.error("Error building fallback recommendations", e);
             return RecommendationResponse.builder()
                     .recommendedCourses(List.of())
-                    .recommendedTopics(List.of("DSA", "DBMS"))
+                    .recommendedTopics(List.of("General"))
                     .build();
         }
     }
@@ -248,14 +261,16 @@ public class RecommendationService {
     public static class MLRecommendRequest {
         String userId;
         List<String> enrolledCourses;
+        List<String> enrolledTopics;
         List<String> completedModules;
         List<QuizAttemptData> quizAttempts;
         
         public MLRecommendRequest() {}
         
-        public MLRecommendRequest(String userId, List<String> enrolledCourses, List<String> completedModules, List<QuizAttemptData> quizAttempts) {
+        public MLRecommendRequest(String userId, List<String> enrolledCourses, List<String> enrolledTopics, List<String> completedModules, List<QuizAttemptData> quizAttempts) {
             this.userId = userId;
             this.enrolledCourses = enrolledCourses;
+            this.enrolledTopics = enrolledTopics;
             this.completedModules = completedModules;
             this.quizAttempts = quizAttempts;
         }
@@ -269,6 +284,9 @@ public class RecommendationService {
         
         public List<String> getEnrolledCourses() { return enrolledCourses; }
         public void setEnrolledCourses(List<String> enrolledCourses) { this.enrolledCourses = enrolledCourses; }
+
+        public List<String> getEnrolledTopics() { return enrolledTopics; }
+        public void setEnrolledTopics(List<String> enrolledTopics) { this.enrolledTopics = enrolledTopics; }
         
         public List<String> getCompletedModules() { return completedModules; }
         public void setCompletedModules(List<String> completedModules) { this.completedModules = completedModules; }
@@ -279,6 +297,7 @@ public class RecommendationService {
         public static class MLRecommendRequestBuilder {
             private String userId;
             private List<String> enrolledCourses;
+            private List<String> enrolledTopics;
             private List<String> completedModules;
             private List<QuizAttemptData> quizAttempts;
             
@@ -289,6 +308,11 @@ public class RecommendationService {
             
             public MLRecommendRequestBuilder enrolledCourses(List<String> enrolledCourses) {
                 this.enrolledCourses = enrolledCourses;
+                return this;
+            }
+
+            public MLRecommendRequestBuilder enrolledTopics(List<String> enrolledTopics) {
+                this.enrolledTopics = enrolledTopics;
                 return this;
             }
             
@@ -303,7 +327,7 @@ public class RecommendationService {
             }
             
             public MLRecommendRequest build() {
-                return new MLRecommendRequest(this.userId, this.enrolledCourses, this.completedModules, this.quizAttempts);
+                return new MLRecommendRequest(this.userId, this.enrolledCourses, this.enrolledTopics, this.completedModules, this.quizAttempts);
             }
         }
     }

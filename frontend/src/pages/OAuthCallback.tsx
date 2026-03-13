@@ -1,6 +1,7 @@
 import { FC, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
+import { getRoleBasedRedirectPath, normalizeRole } from '@/lib/authRole';
 import { Loader2 } from 'lucide-react';
 
 /**
@@ -8,7 +9,7 @@ import { Loader2 } from 'lucide-react';
  *
  * Handles the redirect from the backend after successful OAuth2 authentication.
  * The backend redirects here with query params: token, userId, name, email, role.
- * This page extracts those, stores them in the auth store, and redirects to the dashboard.
+ * This page extracts those, stores them in the auth store, and redirects by role.
  */
 const OAuthCallback: FC = () => {
   const [searchParams] = useSearchParams();
@@ -39,15 +40,17 @@ const OAuthCallback: FC = () => {
       setToken(token);
       localStorage.setItem('authToken', token);
 
+      const normalizedRole = normalizeRole(role || 'student');
+
       // Store user info
       setUser({
         id: userId,
         email,
         name: name || email.split('@')[0],
-        role: (role as 'student' | 'instructor' | 'admin') || 'student',
+        role: normalizedRole,
       });
 
-      navigate('/dashboard', { replace: true });
+      navigate(getRoleBasedRedirectPath(normalizedRole), { replace: true });
     } else {
       setError('Invalid OAuth callback — missing token or user info.');
       setTimeout(() => navigate('/login'), 3000);
@@ -72,3 +75,4 @@ const OAuthCallback: FC = () => {
 };
 
 export default OAuthCallback;
+

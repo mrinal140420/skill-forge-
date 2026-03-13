@@ -5,30 +5,43 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useEnrollments, useSendChatMessage, Enrollment } from '@/hooks/useApi';
-import { Send, Lightbulb, HelpCircle, BookOpen, Loader2 } from 'lucide-react';
+import { useEnrollments, Enrollment } from '@/hooks/useApi';
+import { getSuggestedQuestions, sendSkillBotMessage, validateCourseContext } from '@/api/chatbotService';
+import { Send, Lightbulb, HelpCircle, BookOpen, Loader2, FileVideo, Play, Edit3 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/stores/authStore';
 
 export const MyCourses: FC = () => {
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
   const { data: enrollments = [], isLoading } = useEnrollments();
-  const [selectedTab, setSelectedTab] = useState('modules');
+  const isInstructor = user?.role === 'instructor' || user?.role === 'course_admin';
+  const [selectedTab, setSelectedTab] = useState('curriculum');
   const [aiQuestion, setAiQuestion] = useState('');
   const [chatMessages, setChatMessages] = useState<{ role: string; text: string }[]>([
-    { role: 'bot', text: 'How can I help? I can explain concepts, answer questions, and help you understand the material better.' },
+    { role: 'bot', text: `Hi ${user?.name?.split(' ')[0] || 'there'}, ask me about this course and I will keep the answer short and focused on the uploaded material.` },
   ]);
-  const sendChat = useSendChatMessage();
 
   const typedEnrollments = enrollments as Enrollment[];
   const course = typedEnrollments[0];
   const courseModules = course?.course?.modules || [];
+  const courseContext = course ? {
+    courseId: String(course.courseId),
+    courseTitle: course.courseTitle,
+    courseDescription: course.course?.description,
+    topics: courseModules.map((mod) => mod.title),
+    studentName: user?.name,
+  } : null;
+  const suggestedQuestions = courseContext ? getSuggestedQuestions(courseContext) : [];
 
   const handleAskAI = async () => {
-    if (!aiQuestion.trim()) return;
+    if (!aiQuestion.trim() || !courseContext || !validateCourseContext(courseContext)) return;
     const question = aiQuestion;
     setChatMessages((prev) => [...prev, { role: 'user', text: question }]);
     setAiQuestion('');
     try {
-      const result = await sendChat.mutateAsync({ message: question, courseId: course?.courseId, topic: course?.courseTitle });
-      setChatMessages((prev) => [...prev, { role: 'bot', text: result.botResponse || result.response || result.message || 'I couldn\'t generate a response.' }]);
+      const reply = await sendSkillBotMessage(question, courseContext);
+      setChatMessages((prev) => [...prev, { role: 'bot', text: reply }]);
     } catch {
       setChatMessages((prev) => [...prev, { role: 'bot', text: 'Sorry, I couldn\'t connect to the AI service right now.' }]);
     }
@@ -37,8 +50,10 @@ export const MyCourses: FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">My Courses</h1>
-        <p className="text-muted-foreground">Continue your learning journey</p>
+        <h1 className="text-3xl font-bold">{isInstructor ? 'My Courses (Instructor)' : 'My Courses'}</h1>
+        <p className="text-muted-foreground">
+          {isInstructor ? 'Manage and upload course content' : 'Continue your learning journey'}
+        </p>
       </div>
 
       {isLoading ? (
@@ -48,15 +63,44 @@ export const MyCourses: FC = () => {
         </div>
       ) : typedEnrollments.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          <p>You haven't enrolled in any courses yet.</p>
-          <a href="/courses">
-            <Button variant="link">Explore Courses</Button>
+          <p>{isInstructor ? 'No courses assigned yet.' : "You haven't enrolled in any courses yet."}</p>
+          <a href={isInstructor ? "/instructor/dashboard" : "/courses"}>
+            <Button variant="link">{isInstructor ? 'Go to Dashboard' : 'Explore Courses'}</Button>
           </a>
         </div>
+      ) : isInstructor ? (
+        // INSTRUCTOR VIEW - Course Management
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {typedEnrollments.map((enrollment) => (
+              <Card key={enrollment.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="text-lg">{enrollment.courseTitle}</CardTitle>
+                  <CardDescription>Manage course content</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Upload videos, notes, images, PDFs, and code snippets for your students
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => navigate(`/instructor/courses/${enrollment.courseId}/content`)}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      Edit Content
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       ) : (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content Area */}
-        <div className="lg:col-span-2 space-y-6">
+        // STUDENT VIEW - Course Learning
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content Area */}
+          <div className="lg:col-span-2 space-y-6">
           {/* Course Header */}
           {course && (
             <Card>
@@ -69,6 +113,7 @@ export const MyCourses: FC = () => {
                         ? `${courseModules.length} modules • ${course.course?.duration || 0} hours`
                         : 'Course content'}
                     </CardDescription>
+                    <p className="text-xs text-muted-foreground mt-1">Course ID: {course.courseId}</p>
                   </div>
                   <Badge>{course.status === 'completed' ? 'Completed' : 'In Progress'}</Badge>
                 </div>
@@ -85,13 +130,83 @@ export const MyCourses: FC = () => {
             </Card>
           )}
 
-          {/* Tabs for Modules and Video */}
+          {/* Tabs for Curriculum, Modules, and AI Tutor */}
           <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="modules">Modules</TabsTrigger>
-              <TabsTrigger value="video">Video</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="curriculum" className="flex items-center gap-2">
+                <FileVideo className="h-4 w-4" />
+                Study Materials
+              </TabsTrigger>
+              <TabsTrigger value="modules" className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                Modules
+              </TabsTrigger>
+              <TabsTrigger value="ai" className="flex items-center gap-2">
+                <Lightbulb className="h-4 w-4" />
+                SkillBot
+              </TabsTrigger>
             </TabsList>
 
+            {/* Course Curriculum - Topics, Lessons, Resources */}
+            <TabsContent value="curriculum" className="space-y-4">
+              <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 to-purple-50">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <FileVideo className="h-5 w-5 text-purple-600" />
+                        Course Curriculum
+                      </CardTitle>
+                      <CardDescription>
+                        Watch videos, read notes, view images, and study materials organized by topics
+                      </CardDescription>
+                    </div>
+                    <Button 
+                      onClick={() => navigate(`/course-content/${course?.courseId}`)}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Start Learning
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-white p-6 rounded-lg border border-purple-200">
+                    <p className="text-muted-foreground mb-4">
+                      This course includes organized study materials including:
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-red-500"></div>
+                        <span className="text-sm">📹 Video Lectures</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-blue-500"></div>
+                        <span className="text-sm">📝 Study Notes</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-green-500"></div>
+                        <span className="text-sm">🖼️ Diagrams & Images</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-orange-500"></div>
+                        <span className="text-sm">📄 PDFs & Resources</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-purple-500"></div>
+                        <span className="text-sm">💻 Code Examples</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-yellow-500"></div>
+                        <span className="text-sm">🔗 External Resources</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Course Modules Tab */}
             <TabsContent value="modules" className="space-y-4">
               <Card>
                 <CardHeader>
@@ -123,25 +238,52 @@ export const MyCourses: FC = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent value="video" className="space-y-4">
+            {/* SkillBot AI Tutor Tab */}
+            <TabsContent value="ai" className="space-y-4">
               <Card>
-                <CardContent className="pt-6">
-                  <div className="aspect-video bg-muted rounded-lg flex items-center justify-center mb-4">
-                    <div className="text-center">
-                      <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-muted-foreground">Video player area</p>
-                    </div>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Lightbulb className="h-5 w-5" />
+                    SkillBot AI
+                  </CardTitle>
+                  <CardDescription>Ask short questions about {course?.courseTitle} only</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2 h-64 sm:h-72 overflow-y-auto border border-border rounded-lg p-3 bg-muted/30">
+                    {chatMessages.map((msg, idx) => (
+                      <div key={idx} className={`rounded-lg p-3 text-sm ${msg.role === 'user' ? 'bg-primary/10 ml-4' : 'bg-primary/5 mr-4'}`}>
+                        <p className="font-semibold mb-1">{msg.role === 'user' ? 'You' : 'SkillBot'}</p>
+                        <p className="text-sm text-muted-foreground leading-6">{msg.text}</p>
+                      </div>
+                    ))}
                   </div>
-                  <div className="space-y-3">
-                    <div>
-                      <h3 className="font-semibold mb-2">
-                        {courseModules[0]?.title || 'Course Content'}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {course?.courseTitle || 'Select a module to begin learning.'}
-                      </p>
+
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Input
+                        placeholder={`Ask about ${course?.courseTitle || 'this course'}...`}
+                        value={aiQuestion}
+                        onChange={(e) => setAiQuestion(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAskAI()}
+                        className="pr-10 min-h-11"
+                      />
+                      <button onClick={handleAskAI} className="absolute right-2 top-2.5 text-muted-foreground">
+                        <Send className="h-4 w-4" />
+                      </button>
                     </div>
-                    <Button className="w-full">Mark as Complete</Button>
+
+                    <div className="grid gap-2 text-xs sm:grid-cols-2">
+                      {suggestedQuestions.slice(0, 4).map((suggestion, index) => (
+                        <button
+                          key={suggestion}
+                          onClick={() => { setAiQuestion(suggestion); }}
+                          className="w-full flex items-start gap-2 p-2 rounded-lg hover:bg-muted transition-colors text-left"
+                        >
+                          {index === 0 ? <HelpCircle className="h-4 w-4 text-primary mt-0.5" /> : index === 1 ? <BookOpen className="h-4 w-4 text-primary mt-0.5" /> : <Lightbulb className="h-4 w-4 text-primary mt-0.5" />}
+                          <span>{suggestion}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -174,54 +316,28 @@ export const MyCourses: FC = () => {
           )}
         </div>
 
-        {/* AI Bot Panel */}
+        {/* Sidebar - Quick Stats */}
         <div>
           <Card className="sticky top-6 h-fit">
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Lightbulb className="h-5 w-5" />
-                SkillBot AI
-              </CardTitle>
-              <CardDescription>Ask questions about the content</CardDescription>
+              <CardTitle className="text-lg">Quick Stats</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2 h-64 overflow-y-auto border border-border rounded-lg p-3 bg-muted/30">
-                {chatMessages.map((msg, idx) => (
-                  <div key={idx} className={`rounded-lg p-3 text-sm ${msg.role === 'user' ? 'bg-primary/10 ml-4' : 'bg-primary/5'}`}>
-                    <p className="font-semibold mb-1">{msg.role === 'user' ? 'You' : 'SkillBot'}</p>
-                    <p className="text-xs text-muted-foreground">{msg.text}</p>
-                  </div>
-                ))}
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Courses Enrolled</p>
+                <p className="text-2xl font-bold">{typedEnrollments.length}</p>
               </div>
-
-              <div className="space-y-2">
-                <div className="relative">
-                  <Input
-                    placeholder="Ask a question..."
-                    value={aiQuestion}
-                    onChange={(e) => setAiQuestion(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAskAI()}
-                    className="pr-10"
-                  />
-                  <button onClick={handleAskAI} className="absolute right-2 top-2.5 text-muted-foreground">
-                    <Send className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="space-y-2 text-xs">
-                  <button onClick={() => { setAiQuestion('Explain like I\'m 5'); }} className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors text-left">
-                    <HelpCircle className="h-4 w-4 text-primary" />
-                    <span>Explain like I'm 5</span>
-                  </button>
-                  <button onClick={() => { setAiQuestion('Generate practice questions'); }} className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors text-left">
-                    <BookOpen className="h-4 w-4 text-primary" />
-                    <span>Generate practice questions</span>
-                  </button>
-                  <button onClick={() => { setAiQuestion('Summarize the key concepts'); }} className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors text-left">
-                    <Lightbulb className="h-4 w-4 text-primary" />
-                    <span>Summarize content</span>
-                  </button>
-                </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Average Progress</p>
+                <p className="text-2xl font-bold">{Math.round(typedEnrollments.reduce((a, b) => a + (b.progress || 0), 0) / (typedEnrollments.length || 1))}%</p>
+              </div>
+              <div className="pt-2 border-t">
+                <p className="text-sm font-semibold mb-2">Study Tips</p>
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  <li>✓ Study consistently for best results</li>
+                  <li>✓ Complete all modules in order</li>
+                  <li>✓ Take quizzes after each module</li>
+                </ul>
               </div>
             </CardContent>
           </Card>

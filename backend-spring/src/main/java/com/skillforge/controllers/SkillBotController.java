@@ -1,6 +1,7 @@
 package com.skillforge.controllers;
 
 import com.skillforge.dtos.ChatMessageDTO;
+import com.skillforge.security.JwtAuthenticationToken;
 import com.skillforge.services.SkillBotService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,8 +29,14 @@ public class SkillBotController {
 
     private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof Long) {
-            return (Long) auth.getPrincipal();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new RuntimeException("User not authenticated");
+        }
+        if (auth.getPrincipal() instanceof Long userId) {
+            return userId;
+        }
+        if (auth instanceof JwtAuthenticationToken jwtAuthenticationToken) {
+            return jwtAuthenticationToken.getUserId();
         }
         throw new RuntimeException("User not authenticated");
     }
@@ -47,6 +54,9 @@ public class SkillBotController {
         Long courseId = request.get("courseId") != null ? Long.valueOf(request.get("courseId").toString()) : null;
         
         if (userMessage == null || userMessage.trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (courseId == null) {
             return ResponseEntity.badRequest().build();
         }
         

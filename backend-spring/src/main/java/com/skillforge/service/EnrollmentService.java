@@ -134,10 +134,13 @@ public class EnrollmentService {
      * Populates course details in the response
      */
     private EnrollmentDTO convertEnrollmentToDTO(Enrollment enrollment) {
+        Course course = enrollment.getCourse();
+        CourseDTO courseDTO = course != null ? convertCourseToDTOWithParsedData(course) : null;
+        
         return EnrollmentDTO.builder()
                 .id(enrollment.getId())
                 .userId(enrollment.getUser().getId())
-                .courseId(convertCourseToDTOWithParsedData(enrollment.getCourse()))
+                .courseId(courseDTO)
                 .status(enrollment.getStatus().name())
                 .enrolledAt(enrollment.getEnrolledAt())
                 .updatedAt(enrollment.getUpdatedAt())
@@ -146,8 +149,13 @@ public class EnrollmentService {
 
     /**
      * Convert Course to CourseDTO with parsed JSON data
+     * Handles null course object
      */
     private CourseDTO convertCourseToDTOWithParsedData(Course course) {
+        if (course == null) {
+            return null;
+        }
+        
         Type stringListType = new TypeToken<List<String>>(){}.getType();
         Type moduleListType = new TypeToken<List<CourseDTO.ModuleDTO>>(){}.getType();
         Type longListType = new TypeToken<List<Long>>(){}.getType();

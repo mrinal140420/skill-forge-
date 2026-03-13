@@ -40,6 +40,10 @@ public class Course {
     @Column(nullable = false)
     private CourseLevel level;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private CourseStatus status = CourseStatus.DRAFT;
+
     @Column(nullable = false)
     private Integer durationHours;
 
@@ -141,6 +145,14 @@ public class Course {
         this.level = level;
     }
 
+    public CourseStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(CourseStatus status) {
+        this.status = status;
+    }
+
     public Integer getDurationHours() {
         return durationHours;
     }
@@ -238,6 +250,12 @@ public class Course {
         Advanced
     }
 
+    public enum CourseStatus {
+        DRAFT,
+        PUBLISHED,
+        ARCHIVED
+    }
+
     // Builder pattern
     public static CourseBuilder builder() {
         return new CourseBuilder();
@@ -249,6 +267,7 @@ public class Course {
         private String slug;
         private CourseCategory category;
         private CourseLevel level;
+        private CourseStatus status;
         private Integer durationHours;
         private Double rating;
         private String thumbnailUrl;
@@ -279,6 +298,11 @@ public class Course {
 
         public CourseBuilder level(CourseLevel level) {
             this.level = level;
+            return this;
+        }
+
+        public CourseBuilder status(CourseStatus status) {
+            this.status = status;
             return this;
         }
 
@@ -324,6 +348,7 @@ public class Course {
             course.slug = this.slug;
             course.category = this.category;
             course.level = this.level;
+            course.status = this.status != null ? this.status : CourseStatus.DRAFT;
             course.durationHours = this.durationHours;
             course.rating = this.rating;
             course.thumbnailUrl = this.thumbnailUrl;

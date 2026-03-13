@@ -1,18 +1,24 @@
 package com.skillforge.services;
 
+import com.skillforge.dto.TopicDTO;
 import com.skillforge.dtos.ChatMessageDTO;
-import com.skillforge.models.ChatMessage;
 import com.skillforge.entity.Course;
 import com.skillforge.entity.User;
+import com.skillforge.models.ChatMessage;
 import com.skillforge.repositories.ChatMessageRepository;
 import com.skillforge.repository.CourseRepository;
 import com.skillforge.repository.UserRepository;
+import com.skillforge.service.CourseContentService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -21,184 +27,69 @@ import java.util.stream.Collectors;
  */
 @Service
 public class SkillBotService {
-    
     private static final Logger log = LoggerFactory.getLogger(SkillBotService.class);
-    private static final String BOT_NAME = "SkillBot";
+    private static final List<String> OFF_TOPIC_KEYWORDS = List.of(
+            "weather", "sports", "match", "cricket", "football", "politics", "election",
+            "movie", "music", "celebrity", "meme", "joke", "funny", "dating", "relationship",
+            "bitcoin", "crypto", "stock market", "horoscope", "astrology"
+    );
     
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
     private final CourseRepository courseRepository;
-    
-    // Knowledge base responses indexed by keywords
-    private final Map<String, String> conceptExplanations;
+    private final CourseContentService courseContentService;
+    private final GoogleGenerativeAIService googleGenerativeAIService;
     
     public SkillBotService(ChatMessageRepository chatMessageRepository,
-                          UserRepository userRepository,
-                          CourseRepository courseRepository) {
+                           UserRepository userRepository,
+                           CourseRepository courseRepository,
+                           CourseContentService courseContentService,
+                           GoogleGenerativeAIService googleGenerativeAIService) {
         this.chatMessageRepository = chatMessageRepository;
         this.userRepository = userRepository;
         this.courseRepository = courseRepository;
-        this.conceptExplanations = initializeConceptExplanations();
+        this.courseContentService = courseContentService;
+        this.googleGenerativeAIService = googleGenerativeAIService;
     }
-    
-    /**
-     * Process user message and generate SkillBot response
-     */
+
     public ChatMessageDTO chat(Long userId, String userMessage, Long courseId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        Course course = null;
-        if (courseId != null) {
-            course = courseRepository.findById(courseId).orElse(null);
+
+        if (courseId == null) {
+            return createEphemeralResponse(userId, null, userMessage,
+                    "Please open SkillBot from a specific enrolled course so I can answer within that course context.",
+                    "clarification");
         }
-        
-        // Generate context-aware response
-        String botResponse = generateResponse(userMessage, course, user);
-        
-        // Save message to history
+
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Course not found"));
+
+        String botResponse;
+        String messageType = categorizeQuestion(userMessage);
+        if (!isCourseRelated(userMessage, course)) {
+            botResponse = buildOffTopicResponse(user, course);
+            messageType = "clarification";
+        } else {
+            botResponse = googleGenerativeAIService.generateResponse(buildSystemPrompt(course, user), userMessage);
+            botResponse = ensurePersonalized(user, course, botResponse);
+        }
+
         ChatMessage chatMessage = new ChatMessage();
         chatMessage.setUser(user);
         chatMessage.setCourse(course);
         chatMessage.setUserMessage(userMessage);
         chatMessage.setBotResponse(botResponse);
-        chatMessage.setMessageType(categorizeQuestion(userMessage));
+        chatMessage.setMessageType(messageType);
         chatMessage.setCreatedAt(LocalDateTime.now());
-        
         ChatMessage savedMessage = chatMessageRepository.save(chatMessage);
-        
-        log.info("SkillBot responded to user {} with message type: {}", userId, chatMessage.getMessageType());
-        
+
+        log.info("SkillBot responded to user {} for course {} with mode {} ({})",
+                userId, courseId, messageType, googleGenerativeAIService.getConfigurationStatus());
+
         return convertToDTO(savedMessage);
     }
-    
-    /**
-     * Generate an intelligent response based on the question and context
-     */
-    private String generateResponse(String userMessage, Course course, User user) {
-        String lowerMessage = userMessage.toLowerCase().trim();
-        
-        // Check for greetings
-        if (isGreeting(lowerMessage)) {
-            return generateGreeting(user);
-        }
-        
-        // Check for specific topic explanations
-        for (Map.Entry<String, String> entry : conceptExplanations.entrySet()) {
-            if (lowerMessage.contains(entry.getKey())) {
-                return entry.getValue();
-            }
-        }
-        
-        // If a course context is provided, give course-specific help
-        if (course != null) {
-            return generateCourseSpecificResponse(userMessage, course);
-        }
-        
-        // Generate generic learning assistance
-        return generateGenericAssistance(userMessage, user);
-    }
-    
-    /**
-     * Generate course-specific response based on course content
-     */
-    private String generateCourseSpecificResponse(String userMessage, Course course) {
-        String response = String.format(
-            "Great question about %s! 📚\n\n" +
-            "Based on the course content, here's what I can help with:\n\n",
-            course.getTitle()
-        );
-        
-        // Add course-specific guidance
-        switch (course.getCategory().name().toLowerCase()) {
-            case "dbms":
-                response += "In Database Management, we focus on:\n" +
-                    "• Data modeling and normalization\n" +
-                    "• SQL query optimization\n" +
-                    "• Transaction management (ACID properties)\n" +
-                    "• Indexing strategies\n\n" +
-                    "Could you be more specific about which topic you'd like to dive deeper into?";
-                break;
-            case "os":
-                response += "In Operating Systems, key concepts include:\n" +
-                    "• Process management and scheduling\n" +
-                    "• Memory management (paging, segmentation)\n" +
-                    "• File systems\n" +
-                    "• Concurrency and synchronization\n\n" +
-                    "Which of these would you like to explore?";
-                break;
-            case "cn":
-                response += "In Computer Networks, we cover:\n" +
-                    "• OSI and TCP/IP models\n" +
-                    "• Protocols and packet switching\n" +
-                    "• Routing algorithms\n" +
-                    "• Network security basics\n\n" +
-                    "Would you like to focus on any specific layer or protocol?";
-                break;
-            case "dsa":
-                response += "In Data Structures & Algorithms, key areas are:\n" +
-                    "• Array and Linked List operations\n" +
-                    "• Sorting and Searching\n" +
-                    "• Graph and Tree traversals\n" +
-                    "• Dynamic Programming\n\n" +
-                    "Which data structure or algorithm scenario interests you?";
-                break;
-            default:
-                response += "I'm here to help you understand the concepts in this course. " +
-                    "Could you specify which topic or concept you'd like to discuss?";
-        }
-        
-        return response;
-    }
-    
-    /**
-     * Generate a personalized greeting
-     */
-    private String generateGreeting(User user) {
-        String greeting = "Hello " + (user.getName() != null ? user.getName() : "there") + "! 👋\n\n" +
-            "I'm SkillBot, your AI learning assistant here at SkillForge. " +
-            "I can help you with:\n\n" +
-            "📖 **Concept Explanations** - Ask me to explain any topic\n" +
-            "🤔 **Example Problems** - Request worked examples for better understanding\n" +
-            "💡 **Study Tips** - Get advice on how to master specific concepts\n" +
-            "🔗 **Related Topics** - Discover connections between different concepts\n\n" +
-            "What would you like to learn about today?";
-        
-        return greeting;
-    }
-    
-    /**
-     * Generate generic learning assistance
-     */
-    private String generateGenericAssistance(String userMessage, User user) {
-        if (userMessage.toLowerCase().contains("example") || userMessage.toLowerCase().contains("code")) {
-            return "I'd love to help with examples! 💻\n\n" +
-                "Could you tell me which concept or topic you'd like to see an example for? " +
-                "For instance:\n" +
-                "• \"Show me an example of binary search\"\n" +
-                "• \"How does a circular queue work?\"\n" +
-                "• \"Explain normalization with an example\"\n\n" +
-                "Once you specify, I'll provide a detailed explanation with code or diagrams!";
-        } else if (userMessage.toLowerCase().contains("help") || userMessage.toLowerCase().contains("stuck")) {
-            return "Don't worry, I'm here to help! 🤝\n\n" +
-                "To assist you better, please:\n" +
-                "1. Tell me which course or topic you're studying\n" +
-                "2. Describe what specifically is confusing you\n" +
-                "3. Share what you've already understood\n\n" +
-                "This way, I can provide targeted explanations that build on your existing knowledge!";
-        } else {
-            return "That's an interesting question! 🤔\n\n" +
-                "To give you the best answer, it would help to know:\n" +
-                "• Which course or topic are you studying?\n" +
-                "• What specific aspect interests you?\n" +
-                "• What's your current understanding level?\n\n" +
-                "Feel free to explore any course and I'll be your personal tutor!";
-        }
-    }
-    
-    /**
-     * Categorize the type of question asked
-     */
+
     private String categorizeQuestion(String message) {
         String lower = message.toLowerCase();
         if (lower.contains("example") || lower.contains("code") || lower.contains("how to")) {
@@ -209,32 +100,124 @@ public class SkillBotService {
             return "question";
         }
     }
-    
-    /**
-     * Check if message is a greeting
-     */
-    private boolean isGreeting(String message) {
-        String[] greetings = {"hi", "hello", "hey", "greetings", "what's up", "howdy", "namaste"};
-        return Arrays.stream(greetings).anyMatch(message::contains);
+
+    private String buildSystemPrompt(Course course, User user) {
+        List<TopicDTO> topics = courseContentService.getTopicsForCourse(course.getId());
+        String topicTitles = topics.stream()
+                .map(TopicDTO::getTitle)
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining(", "));
+
+        String lessonTitles = topics.stream()
+                .flatMap(topic -> topic.getLessons().stream())
+                .map(lesson -> lesson.getTitle())
+                .filter(Objects::nonNull)
+                .limit(10)
+                .collect(Collectors.joining(", "));
+
+        return "You are SkillBot, a strict course tutor for SkillForge.\n"
+                + "Course Title: " + course.getTitle() + "\n"
+                + "Student Name: " + firstName(user) + "\n"
+                + "Course Description: " + course.getDescription() + "\n"
+                + "Course Topics: " + (topicTitles.isBlank() ? course.getCategory().name() : topicTitles) + "\n"
+                + "Sample Lessons: " + (lessonTitles.isBlank() ? "No lesson titles available yet" : lessonTitles) + "\n"
+                + "Rules:\n"
+                + "1. Answer only about this specific course.\n"
+                + "2. Keep the answer short, clear, and practical. Use at most 3 sentences.\n"
+                + "3. Start with the student's first name when replying.\n"
+                + "4. If the question is broad, anchor it to the course topics above.\n"
+                + "5. Do not answer off-topic or casual questions. Redirect the student to the course content.\n";
     }
-    
-    /**
-     * Record feedback on a response
-     */
+
+    private boolean isCourseRelated(String message, Course course) {
+        String normalizedMessage = message.toLowerCase(Locale.ROOT);
+        if (OFF_TOPIC_KEYWORDS.stream().anyMatch(normalizedMessage::contains)) {
+            return false;
+        }
+
+        List<String> courseTokens = buildCourseTokens(course);
+        if (courseTokens.stream().anyMatch(normalizedMessage::contains)) {
+            return true;
+        }
+
+        List<String> academicTokens = List.of(
+            "explain", "example", "why", "how", "what is", "define", "concept", "module", "lesson", "topic",
+            "practice", "problem", "algorithm", "query", "memory", "network", "database", "system", "basics", "fundamentals"
+        );
+        return academicTokens.stream().anyMatch(normalizedMessage::contains);
+    }
+
+    private List<String> buildCourseTokens(Course course) {
+        List<String> rawValues = new ArrayList<>();
+        rawValues.add(course.getTitle());
+        rawValues.add(course.getDescription());
+        rawValues.add(course.getCategory() != null ? course.getCategory().name() : null);
+        rawValues.addAll(courseContentService.getTopicTitlesForCourse(course.getId()));
+
+        return rawValues.stream()
+            .filter(Objects::nonNull)
+            .flatMap(value -> expandCourseTerms(value).stream())
+                .distinct()
+                .toList();
+    }
+
+        private List<String> expandCourseTerms(String value) {
+        String normalized = value.toLowerCase(Locale.ROOT)
+            .replace('_', ' ')
+            .replace('-', ' ')
+            .trim();
+
+        List<String> expanded = new ArrayList<>();
+        if (normalized.length() > 2) {
+            expanded.add(normalized);
+        }
+
+        expanded.addAll(Arrays.stream(normalized.split("[^a-z0-9]+"))
+            .filter(token -> token.length() > 2)
+            .toList());
+
+        return expanded;
+        }
+
+    private String buildOffTopicResponse(User user, Course course) {
+        return "Hi " + firstName(user) + ", I can only help with " + course.getTitle()
+            + ". Ask about a topic, lesson, definition, or example from this course and I'll answer directly.";
+    }
+
+    private String ensurePersonalized(User user, Course course, String response) {
+        String cleaned = response == null ? "" : response.trim();
+        if (cleaned.isBlank()) {
+            cleaned = "Please review the current lesson material for " + course.getTitle() + " and ask me about one topic at a time.";
+        }
+
+        String firstName = firstName(user);
+        if (!cleaned.toLowerCase(Locale.ROOT).startsWith(("hi " + firstName).toLowerCase(Locale.ROOT))) {
+            cleaned = "Hi " + firstName + ", " + cleaned;
+        }
+        if (cleaned.length() > 340) {
+            cleaned = cleaned.substring(0, 337).trim() + "...";
+        }
+        return cleaned;
+    }
+
+    private String firstName(User user) {
+        if (user.getName() == null || user.getName().isBlank()) {
+            return "there";
+        }
+        return user.getName().trim().split("\\s+")[0];
+    }
+
     public void recordFeedback(Long messageId, Boolean isHelpful, String feedbackText) {
         ChatMessage message = chatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new RuntimeException("Message not found"));
-        
+
         message.setIsHelpful(isHelpful);
         message.setFeedback(feedbackText);
         chatMessageRepository.save(message);
-        
+
         log.info("Feedback recorded for message {}: helpful={}, feedback={}", messageId, isHelpful, feedbackText);
     }
-    
-    /**
-     * Get chat history for a user
-     */
+
     public List<ChatMessageDTO> getChatHistory(Long userId, Long courseId) {
         if (courseId != null && courseId > 0) {
             return chatMessageRepository.findCourseMessages(userId, courseId)
@@ -249,10 +232,7 @@ public class SkillBotService {
                     .collect(Collectors.toList());
         }
     }
-    
-    /**
-     * Convert ChatMessage entity to DTO
-     */
+
     private ChatMessageDTO convertToDTO(ChatMessage message) {
         return ChatMessageDTO.builder()
                 .id(message.getId())
@@ -266,98 +246,15 @@ public class SkillBotService {
                 .feedback(message.getFeedback())
                 .build();
     }
-    
-    /**
-     * Initialize concept explanations knowledge base
-     */
-    private Map<String, String> initializeConceptExplanations() {
-        Map<String, String> explanations = new HashMap<>();
-        
-        // DBMS Concepts
-        explanations.put("normalization", 
-            "📚 **Database Normalization** - A process to organize data and reduce redundancy:\n\n" +
-            "1️⃣ **First Normal Form (1NF)** - Remove duplicate columns, atomic values only\n" +
-            "2️⃣ **Second Normal Form (2NF)** - Remove partial dependencies\n" +
-            "3️⃣ **Third Normal Form (3NF)** - Remove transitive dependencies\n" +
-            "⭐ **Boyce-Codd Normal Form (BCNF)** - Stricter than 3NF\n\n" +
-            "Benefits: Reduces data anomalies, improves data integrity, saves storage");
-        
-        explanations.put("acid", 
-            "🔐 **ACID Properties** - Guarantees for reliable transactions:\n\n" +
-            "✓ **Atomicity** - All or nothing: entire transaction succeeds or fails\n" +
-            "✓ **Consistency** - Data remains valid before and after transaction\n" +
-            "✓ **Isolation** - Concurrent transactions don't interfere with each other\n" +
-            "✓ **Durability** - Once committed, data persists even after failure\n\n" +
-            "Critical for banking, e-commerce, and mission-critical systems");
-        
-        explanations.put("sql", 
-            "🗄️ **SQL - Structured Query Language** - Standard language for databases:\n\n" +
-            "📖 **DML**: SELECT, INSERT, UPDATE, DELETE - Manipulate data\n" +
-            "📋 **DDL**: CREATE, ALTER, DROP - Define structures\n" +
-            "🔒 **DCL**: GRANT, REVOKE - Control access\n" +
-            "⚙️ **TCL**: COMMIT, ROLLBACK - Control transactions\n\n" +
-            "Pro Tip: Use indexes on frequently queried columns for better performance!");
-        
-        // OS Concepts
-        explanations.put("process", 
-            "⚙️ **Process in Operating System** - An executing instance of a program:\n\n" +
-            "📋 **Process States**: New → Ready → Running → Waiting → Terminated\n" +
-            "💾 **Process Control Block (PCB)** - Stores process information\n" +
-            "🔄 **Context Switching** - CPU switches between processes\n" +
-            "👨‍👩‍👧 **Parent-Child Relationship** - Process creation hierarchy\n\n" +
-            "Difference from Thread: Processes are independent, threads share memory");
-        
-        explanations.put("deadlock", 
-            "🔒 **Deadlock** - When 2+ processes wait indefinitely for each other:\n\n" +
-            "4 Necessary Conditions:\n" +
-            "1. **Mutual Exclusion** - Resource can't be shared\n" +
-            "2. **Hold and Wait** - Process holds resources while waiting\n" +
-            "3. **No Preemption** - Resources can't be forcibly taken\n" +
-            "4. **Circular Wait** - Circular chain of processes waiting\n\n" +
-            "Prevention: Break any one condition. Detection: Banker's algorithm");
-        
-        // CN Concepts
-        explanations.put("tcp", 
-            "🌐 **TCP - Transmission Control Protocol** - Reliable, connection-oriented:\n\n" +
-            "🤝 **3-Way Handshake** (Connection):\n" +
-            "1. SYN (Client → Server)\n" +
-            "2. SYN-ACK (Server → Client)\n" +
-            "3. ACK (Client → Server)\n\n" +
-            "vs UDP: TCP = reliable but slower; UDP = fast but unreliable\n" +
-            "Uses: HTTP/HTTPS, Email, FTP. UDP: Video streaming, Gaming");
-        
-        explanations.put("osi", 
-            "🏢 **OSI Model** - 7 Layers for network communication:\n\n" +
-            "7. **Application** - HTTP, HTTPS, FTP, DNS - User apps\n" +
-            "6. **Presentation** - Encryption, compression - Data format\n" +
-            "5. **Session** - Session management, authentication\n" +
-            "4. **Transport** - TCP, UDP - End-to-end delivery\n" +
-            "3. **Network** - IP, Routing - Path finding\n" +
-            "2. **Data Link** - MAC, Ethernet - Frame transmission\n" +
-            "1. **Physical** - Cables, signals - Raw bits\n\n" +
-            "Remember: **Please Do Not Throw Sausage Pizza Away!**");
-        
-        // DSA Concepts
-        explanations.put("binary search", 
-            "🎯 **Binary Search** - O(log n) search in sorted arrays:\n\n" +
-            "How it works:\n" +
-            "1. Compare middle element\n" +
-            "2. If equal, found! If less, search left half\n" +
-            "3. If greater, search right half\n" +
-            "4. Repeat until found or search space empty\n\n" +
-            "⚠️ **Requirement**: Array must be SORTED!\n" +
-            "Example: Finding age in [10, 20, 30, 40, 50]");
-        
-        // General Learning concepts
-        explanations.put("algorithm", 
-            "🧮 **Algorithm** - Step-by-step procedure to solve a problem:\n\n" +
-            "Key Characteristics:\n" +
-            "✓ **Finite** - Must terminate\n" +
-            "✓ **Definite** - Clear instructions\n" +
-            "✓ **Effective** - Practical and efficient\n" +
-            "✓ **Input/Output** - Well-defined inputs and outputs\n\n" +
-            "Evaluated by: Time Complexity (Big O), Space Complexity, Correctness");
-        
-        return explanations;
+
+    private ChatMessageDTO createEphemeralResponse(Long userId, Long courseId, String userMessage, String botResponse, String messageType) {
+        return ChatMessageDTO.builder()
+                .userId(userId)
+                .courseId(courseId)
+                .userMessage(userMessage)
+                .botResponse(botResponse)
+                .messageType(messageType)
+                .createdAt(LocalDateTime.now())
+                .build();
     }
 }

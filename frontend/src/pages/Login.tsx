@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuthStore } from '@/stores/authStore';
 import apiClient from '@/api/apiClient';
+import { getRoleBasedRedirectPath, normalizeRole } from '@/lib/authRole';
 import { Github, Globe, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export const Login: FC = () => {
@@ -32,9 +33,17 @@ export const Login: FC = () => {
         localStorage.setItem('authToken', data.token);
       }
       if (data.user) {
-        setUser(data.user);
+        // Normalize role from backend (STUDENT, COURSE_ADMIN, SUPER_ADMIN) to frontend format
+        const normalizedUser = {
+          ...data.user,
+          role: normalizeRole(data.user.role)
+        };
+        setUser(normalizedUser);
+        
+        // Redirect based on role
+        const redirectPath = getRoleBasedRedirectPath(normalizedUser.role);
+        navigate(redirectPath);
       }
-      navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Invalid email or password');
     } finally {
@@ -157,3 +166,4 @@ export const Login: FC = () => {
     </div>
   );
 };
+

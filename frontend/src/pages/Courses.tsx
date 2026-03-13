@@ -117,8 +117,7 @@ export const Courses: FC = () => {
             </div>
           ) : (
             courses.map((course) => (
-              <Link key={course.id} to={`/courses/${course.id}`}>
-                <Card className="h-full hover:shadow-xl transition-all border-slate-200 bg-white shadow-md hover:border-blue-400 overflow-hidden group cursor-pointer">
+              <Card key={course.id} className="h-full hover:shadow-xl transition-all border-slate-200 bg-white shadow-md hover:border-blue-400 overflow-hidden group">
                   <div className="h-1 bg-gradient-to-r from-blue-600 to-purple-600"></div>
                   <CardHeader>
                     <div className="flex items-start justify-between mb-2 gap-2">
@@ -126,9 +125,14 @@ export const Courses: FC = () => {
                         <CardTitle className="line-clamp-2 text-slate-900">{course.title}</CardTitle>
                         <p className="text-sm text-slate-600 mt-1">{course.instructor}</p>
                       </div>
-                      <Badge variant={course.level === 'advanced' ? 'default' : 'secondary'} className="bg-blue-600">
-                        {course.level}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge variant={course.level === 'advanced' ? 'default' : 'secondary'} className="bg-blue-600">
+                          {course.level}
+                        </Badge>
+                        <span className="text-[11px] font-mono bg-slate-100 text-slate-700 px-2 py-1 rounded">
+                          ID: {course.id}
+                        </span>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -161,10 +165,16 @@ export const Courses: FC = () => {
                       </div>
                     </div>
 
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">View Course</Button>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                        <Link to={`/courses/${course.id}`}>View Course</Link>
+                      </Button>
+                      <Button asChild variant="outline" className="w-full border-amber-300 text-amber-700 hover:bg-amber-50">
+                        <Link to={`/doubts?courseId=${course.id}`}>Ask Doubt</Link>
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
-              </Link>
             ))
           )}
         </div>

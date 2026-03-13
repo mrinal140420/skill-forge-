@@ -5,6 +5,7 @@ import { queryClient } from "./lib/queryClient";
 import { Navbar } from "./components/Navbar";
 import { Sidebar } from "./components/Sidebar";
 import { useAuthStore } from "./stores/authStore";
+import { getRoleBasedRedirectPath, normalizeRole } from "./lib/authRole.ts";
 
 import { Landing } from "./pages/Landing";
 import { Login } from "./pages/Login";
@@ -15,11 +16,20 @@ import { Dashboard } from "./pages/Dashboard";
 import { Learning } from "./pages/Learning";
 import { MyCourses } from "./pages/MyCourses";
 import { CourseContent } from "./pages/CourseContent";
+import { AdminCourseContent } from "./pages/AdminCourseContent";
 import { Certifications } from "./pages/Certifications";
 import { ExamProctoring } from "./pages/ExamProctoring";
 import { PerformanceAnalytics } from "./pages/PerformanceAnalytics";
 import { SettingsPage } from "./pages/Settings";
 import OAuthCallback from "./pages/OAuthCallback";
+import { SuperAdminDashboard } from "./pages/SuperAdminDashboard";
+import { CourseAdminDashboard } from "./pages/CourseAdminDashboard";
+import { AdminCourses } from "./pages/AdminCourses";
+import { AdminUsers } from "./pages/AdminUsers";
+import { AdminDoubts } from "./pages/AdminDoubts";
+import { InstructorCourses } from "./pages/InstructorCourses";
+import { InstructorDoubts } from "./pages/InstructorDoubts";
+import { StudentDoubts } from "./pages/StudentDoubts";
 
 import "./globals.css";
 
@@ -29,6 +39,9 @@ function ProtectedRoute({
   element: React.ReactElement;
 }): React.ReactElement {
   const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+
+  if (loading) return <div className="min-h-screen" />;
   return user ? element : <Navigate to="/login" replace />;
 }
 
@@ -38,7 +51,66 @@ function PublicOnlyRoute({
   element: React.ReactElement;
 }): React.ReactElement {
   const user = useAuthStore((state) => state.user);
-  return user ? <Navigate to="/dashboard" replace /> : element;
+  const loading = useAuthStore((state) => state.loading);
+
+  // Show nothing while loading to prevent flash
+  if (loading) return <div className="min-h-screen" />;
+
+  if (!user) return element;
+
+  // Redirect authenticated users to their role-specific dashboard
+  return <Navigate to={getRoleBasedRedirectPath(user.role)} replace />;
+}
+
+function StudentDashboardRoute(): React.ReactElement {
+  const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+
+  if (loading) return <div className="min-h-screen" />;
+  if (!user) return <Navigate to="/login" replace />;
+
+  const role = normalizeRole(user.role);
+  if (role !== 'student') {
+    return <Navigate to={getRoleBasedRedirectPath(role)} replace />;
+  }
+
+  return <Dashboard />;
+}
+
+function AdminRoute({
+  element,
+}: {
+  element: React.ReactElement;
+}): React.ReactElement {
+  const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+
+  if (loading) return <div className="min-h-screen" />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return element;
+}
+
+function InstructorRoute({
+  element,
+}: {
+  element: React.ReactElement;
+}): React.ReactElement {
+  const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+
+  if (loading) return <div className="min-h-screen" />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (user.role !== 'instructor' && user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return element;
 }
 
 function App() {
@@ -51,8 +123,8 @@ function App() {
         <div className="flex">
           {user && <Sidebar />}
 
-          <main className={`flex-1 ${user ? "lg:pl-64" : ""}`}>
-            <div className={user ? "p-6 max-w-7xl mx-auto" : ""}>
+          <main className={`flex-1 overflow-x-hidden`}>
+            <div className={user ? "w-full" : ""}>
               <Routes>
                 {/* Public */}
                 <Route path="/" element={<Landing />} />
@@ -75,7 +147,7 @@ function App() {
                 {/* Protected */}
                 <Route
                   path="/dashboard"
-                  element={<ProtectedRoute element={<Dashboard />} />}
+                  element={<StudentDashboardRoute />}
                 />
                 <Route
                   path="/learn/:courseId/:moduleId"
@@ -104,6 +176,54 @@ function App() {
                 <Route
                   path="/settings"
                   element={<ProtectedRoute element={<SettingsPage />} />}
+                />
+                <Route
+                  path="/doubts"
+                  element={<ProtectedRoute element={<StudentDoubts />} />}
+                />
+
+                {/* Admin Routes */}
+                <Route
+                  path="/admin/dashboard"
+                  element={<AdminRoute element={<SuperAdminDashboard />} />}
+                />
+                <Route
+                  path="/admin/courses"
+                  element={<AdminRoute element={<AdminCourses />} />}
+                />
+                <Route
+                  path="/admin/courses/:courseId/content"
+                  element={<AdminRoute element={<AdminCourseContent />} />}
+                />
+                <Route
+                  path="/admin/users"
+                  element={<AdminRoute element={<AdminUsers />} />}
+                />
+                <Route
+                  path="/admin/doubts"
+                  element={<AdminRoute element={<AdminDoubts />} />}
+                />
+
+                {/* Instructor Routes */}
+                <Route
+                  path="/instructor/dashboard"
+                  element={<InstructorRoute element={<CourseAdminDashboard />} />}
+                />
+                <Route
+                  path="/instructor/courses"
+                  element={<InstructorRoute element={<InstructorCourses />} />}
+                />
+                <Route
+                  path="/instructor/courses/:courseId/content"
+                  element={<InstructorRoute element={<AdminCourseContent />} />}
+                />
+                <Route
+                  path="/instructor/course/:courseId/edit"
+                  element={<InstructorRoute element={<InstructorCourses />} />}
+                />
+                <Route
+                  path="/instructor/doubts"
+                  element={<InstructorRoute element={<InstructorDoubts />} />}
                 />
 
                 {/* Fallback */}

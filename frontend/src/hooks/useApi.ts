@@ -307,12 +307,24 @@ export const useRecommendations = () => {
       const rawCourses = data?.recommendedCourses || [];
       const courses = rawCourses.map((r: any) => ({
         id: String(r.courseId || r.id || ''),
-        title: r.title || '',
+        title: r.title || String(r.courseId || r.id || 'Recommended Course').replace(/[_-]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
         reason: r.reason || 'Recommended for you',
-        category: r.category || '',
+        category: r.category || 'General',
         score: r.score || 0,
       }));
       return { courses, topics: data?.recommendedTopics || [] };
+    },
+    retry: 1,
+  });
+};
+
+// ===== ML Analytics =====
+export const useMLAnalytics = () => {
+  return useQuery({
+    queryKey: ['ml-analytics'],
+    queryFn: async () => {
+      const { data } = await apiClient.get('/api/analytics/me');
+      return data;
     },
     retry: 1,
   });

@@ -142,10 +142,14 @@ public class User {
     }
 
     /**
-     * User role enum: STUDENT or ADMIN
+     * User role enum: STUDENT, COURSE_ADMIN, SUPER_ADMIN, ADMIN
+     * SUPER_ADMIN = Full platform access
+     * ADMIN = Legacy compatibility alias for SUPER_ADMIN
+     * COURSE_ADMIN = Can manage assigned courses only
+     * STUDENT = Standard student access
      */
     public enum UserRole {
-        STUDENT, ADMIN
+        STUDENT, COURSE_ADMIN, SUPER_ADMIN, ADMIN
     }
 
     // Builder pattern

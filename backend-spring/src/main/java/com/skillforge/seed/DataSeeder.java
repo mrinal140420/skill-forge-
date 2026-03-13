@@ -69,15 +69,12 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // Check if data already seeded
-        if (userRepository.count() > 0) {
-            log.info("Database already seeded, skipping seeding");
-            return;
-        }
-
-        log.info("🌱 Starting database seed with realistic data...");
+        log.info("🌱 Starting database seed with fresh data...");
 
         try {
+            // Clear existing data
+            clearDatabase();
+
             // Seed users
             List<User> users = seedUsers();
 
@@ -88,7 +85,7 @@ public class DataSeeder implements CommandLineRunner {
             seedEnrollments(users, courses);
 
             log.info("✅ Database seeding completed successfully!");
-            log.info("   - Users: {}", users.size());
+            log.info("   - Users: {} (1 Super Admin, 1 Instructor, 8+ Students)", users.size());
             log.info("   - Courses: {}", courses.size());
             log.info("   - Ready for testing!");
         } catch (Exception e) {
@@ -97,21 +94,45 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     /**
-     * Create admin user + 10 student users
+     * Clear existing data from database
+     */
+    private void clearDatabase() {
+        log.info("Clearing database...");
+        quizAttemptRepository.deleteAll();
+        progressRepository.deleteAll();
+        enrollmentRepository.deleteAll();
+        courseRepository.deleteAll();
+        userRepository.deleteAll();
+        log.info("Database cleared");
+    }
+
+    /**
+     * Create admin user + 1 instructor + 8 student users
      */
     private List<User> seedUsers() {
         List<User> users = new ArrayList<>();
 
-        // Admin user
+        // Super Admin user
         User admin = User.builder()
                 .name("Admin User")
                 .email("admin@skillforge.com")
                 .passwordHash(passwordEncoder.encode("admin123"))
-                .role(User.UserRole.ADMIN)
+                .role(User.UserRole.SUPER_ADMIN)
                 .lastActivityAt(LocalDateTime.now())
                 .build();
         users.add(userRepository.save(admin));
-        log.debug("Created admin user");
+        log.debug("✓ Created Super Admin: admin@skillforge.com");
+
+        // Course Admin / Instructor user
+        User instructor = User.builder()
+                .name("Alice Johnson")
+                .email("instructor@skillforge.com")
+                .passwordHash(passwordEncoder.encode("instructor123"))
+                .role(User.UserRole.COURSE_ADMIN)
+                .lastActivityAt(LocalDateTime.now())
+                .build();
+        users.add(userRepository.save(instructor));
+        log.debug("✓ Created Instructor (Course Admin): instructor@skillforge.com");
 
         // Student users with Indian names
         String[] studentNames = {
@@ -122,8 +143,6 @@ public class DataSeeder implements CommandLineRunner {
                 "Amit Gupta",
                 "Neha Verma",
                 "Rohan Joshi",
-                "Sakshi Mishra",
-                "Vikram Das",
                 "Pooja Iyer"
         };
 
@@ -132,14 +151,17 @@ public class DataSeeder implements CommandLineRunner {
             User student = User.builder()
                     .name(name)
                     .email(email)
-                    .passwordHash(passwordEncoder.encode("password123"))
+                    .passwordHash(passwordEncoder.encode("student123"))
                     .role(User.UserRole.STUDENT)
                     .lastActivityAt(LocalDateTime.now().minusDays(random.nextInt(30)))
                     .build();
             users.add(userRepository.save(student));
         }
 
-        log.info("Created {} users", users.size());
+        log.info("✓ Created {} users:", users.size());
+        log.info("  - 1 Super Admin");
+        log.info("  - 1 Instructor (Course Admin)");
+        log.info("  - {} Students", studentNames.length);
         return users;
     }
 

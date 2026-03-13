@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuthStore } from '@/stores/authStore';
 import apiClient from '@/api/apiClient';
+import { getRoleBasedRedirectPath } from '@/lib/authRole';
 import { Github, Globe, CheckCircle2, XCircle } from 'lucide-react';
 
 const PASSWORD_RULES = {
@@ -88,6 +89,8 @@ export const Register: FC = () => {
       }
       if (data.user) {
         setUser(data.user);
+        navigate(getRoleBasedRedirectPath(data.user.role));
+        return;
       }
       navigate('/dashboard');
     } catch (err: any) {

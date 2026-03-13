@@ -1,7 +1,9 @@
 package com.skillforge.controller;
 
 import com.skillforge.dto.CourseDTO;
+import com.skillforge.entity.User;
 import com.skillforge.service.CourseService;
+import com.skillforge.security.AuthorizationUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -15,6 +17,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -40,6 +44,9 @@ public class CoursesController {
 
     @Autowired
     private CourseService courseService;
+
+    @Autowired
+    private AuthorizationUtil authorizationUtil;
 
     /**
      * GET /api/courses
@@ -145,8 +152,20 @@ public class CoursesController {
             @ApiResponse(responseCode = "403", description = "Forbidden - admin role required")
     })
     public ResponseEntity<?> createCourse(@RequestBody CourseDTO courseDTO) {
-        // TODO: Check if user is ADMIN
         try {
+            // Get current user from security context
+            User user = getCurrentUser();
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ErrorResponse("Unauthorized - authentication required"));
+            }
+            
+            // Check if user is an admin
+            if (!authorizationUtil.isAdmin(user)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ErrorResponse("Forbidden - admin role required"));
+            }
+            
             CourseDTO created = courseService.createCourse(courseDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
         } catch (IllegalArgumentException e) {
@@ -157,6 +176,17 @@ public class CoursesController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse("Failed to create course"));
         }
+    }
+
+    private User getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return null;
+        }
+        if (auth.getDetails() instanceof User user) {
+            return user;
+        }
+        return null;
     }
 
     // Response DTOs

@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 
-const FullPageLoader = () => (
+const FullPageLoader: React.FC = () => (
   <div className="flex items-center justify-center min-h-screen">
     <div className="text-center">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -11,7 +11,7 @@ const FullPageLoader = () => (
   </div>
 );
 
-export const ProtectedRoute = () => {
+export const ProtectedRoute: React.FC = () => {
   const { isAuthenticated, loading } = useAuthStore();
   const location = useLocation();
 
@@ -26,7 +26,7 @@ export const ProtectedRoute = () => {
   return <Outlet />;
 };
 
-export const PublicOnlyRoute = () => {
+export const PublicOnlyRoute: React.FC = () => {
   const { isAuthenticated, loading } = useAuthStore();
 
   if (loading) {

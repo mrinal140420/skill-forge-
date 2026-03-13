@@ -127,6 +127,9 @@ public class CourseService {
                 .slug(generateSlug(courseDTO.getTitle()))
                 .category(Course.CourseCategory.valueOf(courseDTO.getCategory()))
                 .level(Course.CourseLevel.valueOf(courseDTO.getLevel()))
+            .status(courseDTO.getStatus() != null
+                ? Course.CourseStatus.valueOf(courseDTO.getStatus())
+                : Course.CourseStatus.DRAFT)
                 .durationHours(courseDTO.getDurationHours())
                 .rating(courseDTO.getRating() != null ? courseDTO.getRating() : 0.0)
                 .thumbnailUrl(courseDTO.getThumbnailUrl())
@@ -139,6 +142,50 @@ public class CourseService {
         course = courseRepository.save(course);
         log.info("Course created: {}", course.getTitle());
 
+        return convertCourseToDTOWithParsedData(course);
+    }
+
+    public CourseDTO updateCourse(Long courseId, CourseDTO courseDTO) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new IllegalArgumentException("Course not found"));
+
+        if (courseDTO.getTitle() != null && !courseDTO.getTitle().isBlank()) {
+            course.setTitle(courseDTO.getTitle());
+            course.setSlug(generateSlug(courseDTO.getTitle()));
+        }
+        if (courseDTO.getCategory() != null && !courseDTO.getCategory().isBlank()) {
+            course.setCategory(Course.CourseCategory.valueOf(courseDTO.getCategory()));
+        }
+        if (courseDTO.getLevel() != null && !courseDTO.getLevel().isBlank()) {
+            course.setLevel(Course.CourseLevel.valueOf(courseDTO.getLevel()));
+        }
+        if (courseDTO.getStatus() != null && !courseDTO.getStatus().isBlank()) {
+            course.setStatus(Course.CourseStatus.valueOf(courseDTO.getStatus()));
+        }
+        if (courseDTO.getDurationHours() != null) {
+            course.setDurationHours(courseDTO.getDurationHours());
+        }
+        if (courseDTO.getRating() != null) {
+            course.setRating(courseDTO.getRating());
+        }
+        if (courseDTO.getThumbnailUrl() != null) {
+            course.setThumbnailUrl(courseDTO.getThumbnailUrl());
+        }
+        if (courseDTO.getDescription() != null) {
+            course.setDescription(courseDTO.getDescription());
+        }
+        if (courseDTO.getTags() != null) {
+            course.setTags(gson.toJson(courseDTO.getTags()));
+        }
+        if (courseDTO.getSyllabusModules() != null) {
+            course.setSyllabusModules(gson.toJson(courseDTO.getSyllabusModules()));
+        }
+        if (courseDTO.getPrerequisites() != null) {
+            course.setPrerequisites(gson.toJson(courseDTO.getPrerequisites()));
+        }
+
+        course = courseRepository.save(course);
+        log.info("Course updated: {}", course.getTitle());
         return convertCourseToDTOWithParsedData(course);
     }
 
@@ -163,8 +210,9 @@ public class CourseService {
     /**
      * Convert Course entity to CourseDTO with JSON parsing
      * Parses tags, modules, and prerequisites from JSON format
+     * Public method to allow other services to use this conversion
      */
-    private CourseDTO convertCourseToDTOWithParsedData(Course course) {
+    public CourseDTO convertCourseToDTOWithParsedData(Course course) {
         // Parse JSON fields
         Type stringListType = new TypeToken<List<String>>(){}.getType();
         Type moduleListType = new TypeToken<List<CourseDTO.ModuleDTO>>(){}.getType();
@@ -183,6 +231,7 @@ public class CourseService {
                 .slug(course.getSlug())
                 .category(course.getCategory().name())
                 .level(course.getLevel().name())
+                .status(course.getStatus() != null ? course.getStatus().name() : Course.CourseStatus.DRAFT.name())
                 .durationHours(course.getDurationHours())
                 .rating(course.getRating())
                 .thumbnailUrl(course.getThumbnailUrl())

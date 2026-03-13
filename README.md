@@ -88,6 +88,7 @@
 |---------|-------------|
 | JWT + OAuth2 Auth | Email/password registration + Google/GitHub social login |
 | 18+ CSE Courses | DSA, DBMS, OS, CN, OOP, System Design, AI/ML, Cybersecurity |
+| Course Curriculum | **[NEW]** Topic-based lesson structure with topic-wise study materials (videos, notes, images, PDFs, code snippets) |
 | 5 Modules per Course | YouTube videos, transcripts, quizzes per module |
 | SkillBot AI Tutor | Chat-based concept explanations with feedback loop |
 | Proctored Exams | AI face/movement detection, keyboard blocking, tab-switch detection |
@@ -97,7 +98,8 @@
 | Performance Analytics | Radar charts, topic-wise scores, 7-day improvement plans |
 
 ### Admin Features
-- User management, course CRUD, analytics dashboard, role-based access control
+- User management, course CRUD, **course content management (topics, lessons, resources)**
+- Analytics dashboard, role-based access control
 
 ### Security
 - BCrypt password hashing (10 rounds)

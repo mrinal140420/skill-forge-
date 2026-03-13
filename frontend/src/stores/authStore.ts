@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { normalizeRole } from '@/lib/authRole';
 
 interface User {
   id: string;
@@ -27,14 +28,17 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
       loading: false,
       error: null,
       
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
+      setUser: (user) => {
+        const normalizedUser = user ? { ...user, role: normalizeRole(user.role) } : null;
+        set({ user: normalizedUser, isAuthenticated: !!normalizedUser });
+      },
       setToken: (token) => set({ token }),
       setLoading: (loading) => set({ loading }),
       setError: (error) => set({ error }),
@@ -52,6 +56,19 @@ export const useAuthStore = create<AuthState>()(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
+      merge: (persistedState, currentState) => {
+        const typedPersistedState = persistedState as Partial<AuthState>;
+        const persistedUser = typedPersistedState.user
+          ? { ...typedPersistedState.user, role: normalizeRole(typedPersistedState.user.role) }
+          : null;
+
+        return {
+          ...currentState,
+          ...typedPersistedState,
+          user: persistedUser,
+          isAuthenticated: !!persistedUser,
+        };
+      },
     }
   )
 );

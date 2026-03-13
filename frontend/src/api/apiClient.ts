@@ -49,36 +49,26 @@ export const authAPI = {
 
 // Courses APIs
 export const coursesAPI = {
-  getAll: (params = {}) =>
-    apiClient.get('/courses', { params }),
-  getById: (id) => apiClient.get(`/courses/${id}`),
-  create: (course) => apiClient.post('/courses', course),
+  getAll: () => apiClient.get('/api/courses'),
+  getById: (id) => apiClient.get(`/api/courses/${id}`),
+  getEnrolled: () => apiClient.get('/api/my-courses'),
+  enroll: (courseId) => apiClient.post(`/api/courses/${courseId}/enroll`),
 };
 
-// Enrollments APIs
-export const enrollmentsAPI = {
-  enroll: (courseId) =>
-    apiClient.post('/enrollments', { courseId }),
-  getMyEnrollments: () => apiClient.get('/enrollments/me'),
-  getById: (id) => apiClient.get(`/enrollments/${id}`),
-};
-
-// Progress APIs
-export const progressAPI = {
-  markComplete: (courseId, moduleId) =>
-    apiClient.post('/progress/complete', { courseId, moduleId }),
-  getMyProgress: () => apiClient.get('/progress/me'),
-  submitQuiz: (courseId, moduleId, answers, timeTakenSec) =>
-    apiClient.post('/quiz/submit', {
-      courseId,
-      moduleId,
-      answers,
-      timeTakenSec,
+// Learning APIs
+export const learningAPI = {
+  getLearning: (courseId, moduleId) =>
+    apiClient.get(`/api/learning/${courseId}/${moduleId}`),
+  submitProgress: (courseId, moduleId, progress) =>
+    apiClient.post(`/api/learning/${courseId}/${moduleId}/progress`, {
+      progress,
     }),
 };
 
-// Recommendations APIs
-export const recommendationsAPI = {
-  getRecommendations: () =>
-    apiClient.get('/recommendations/me'),
+// Quiz APIs
+export const quizAPI = {
+  getQuiz: (courseId, moduleId) =>
+    apiClient.get(`/api/quiz/${courseId}/${moduleId}`),
+  submitQuiz: (courseId, moduleId, answers) =>
+    apiClient.post(`/api/quiz/${courseId}/${moduleId}/submit`, { answers }),
 };

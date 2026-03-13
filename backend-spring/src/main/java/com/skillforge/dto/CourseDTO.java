@@ -23,6 +23,7 @@ public class CourseDTO {
     private String slug;
     private String category;
     private String level;
+    private String status;
     private Integer durationHours;
     private Double rating;
     private String thumbnailUrl;
@@ -44,7 +45,7 @@ public class CourseDTO {
     public CourseDTO() {
     }
 
-    public CourseDTO(Long id, String title, String slug, String category, String level,
+    public CourseDTO(Long id, String title, String slug, String category, String level, String status,
                      Integer durationHours, Double rating, String thumbnailUrl, String description,
                      List<String> tags, List<ModuleDTO> syllabusModules, List<Long> prerequisites,
                      LocalDateTime createdAt, LocalDateTime updatedAt) {
@@ -53,6 +54,7 @@ public class CourseDTO {
         this.slug = slug;
         this.category = category;
         this.level = level;
+        this.status = status;
         this.durationHours = durationHours;
         this.rating = rating;
         this.thumbnailUrl = thumbnailUrl;
@@ -103,6 +105,14 @@ public class CourseDTO {
 
     public void setLevel(String level) {
         this.level = level;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public Integer getDurationHours() {
@@ -188,6 +198,7 @@ public class CourseDTO {
         private String slug;
         private String category;
         private String level;
+        private String status;
         private Integer durationHours;
         private Double rating;
         private String thumbnailUrl;
@@ -220,6 +231,11 @@ public class CourseDTO {
 
         public CourseDTOBuilder level(String level) {
             this.level = level;
+            return this;
+        }
+
+        public CourseDTOBuilder status(String status) {
+            this.status = status;
             return this;
         }
 
@@ -269,7 +285,7 @@ public class CourseDTO {
         }
 
         public CourseDTO build() {
-            return new CourseDTO(id, title, slug, category, level, durationHours, rating,
+                return new CourseDTO(id, title, slug, category, level, status, durationHours, rating,
                     thumbnailUrl, description, tags, syllabusModules, prerequisites,
                     createdAt, updatedAt);
         }

@@ -17,7 +17,7 @@ public class UserDTO {
     private Long id;
     private String name;
     private String email;
-    private String role;  // STUDENT or ADMIN
+    private String role;  // STUDENT, COURSE_ADMIN, or SUPER_ADMIN
     private LocalDateTime createdAt;
     private LocalDateTime lastActivityAt;
     private LocalDateTime updatedAt;
