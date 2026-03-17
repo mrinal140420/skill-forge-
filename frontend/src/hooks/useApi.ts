@@ -81,6 +81,22 @@ export interface QuizAttempt {
   completedAt: string;
 }
 
+export interface GeneratedExamQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswerIndex?: number;
+  explanation?: string;
+}
+
+export interface GeneratedExam {
+  courseId: string;
+  title: string;
+  durationSeconds: number;
+  generatedAt?: string;
+  questions: GeneratedExamQuestion[];
+}
+
 // ===== Data Mapping Helpers =====
 
 /**
@@ -303,6 +319,71 @@ export const useSubmitQuiz = () => {
       queryClient.invalidateQueries({ queryKey: ['quiz'] });
       queryClient.invalidateQueries({ queryKey: ['enrollments'] });
     },
+  });
+};
+
+export const useCourseExam = (courseId?: string, enabled = true) => {
+  return useQuery({
+    queryKey: ['course-exam', courseId],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/api/exams/${courseId}`);
+      return data as GeneratedExam;
+    },
+    enabled: !!courseId && enabled,
+    retry: 1,
+  });
+};
+
+export const useGenerateCourseExam = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (courseId: string) => {
+      const { data } = await apiClient.post(`/api/exams/generate/${courseId}`);
+      return data as GeneratedExam;
+    },
+    onSuccess: (data, courseId) => {
+      queryClient.invalidateQueries({ queryKey: ['course-exam', courseId] });
+    },
+  });
+};
+
+// ===== Course Content (Topics / Lessons) =====
+export interface LessonResource {
+  id: number;
+  title: string;
+  resourceType: string;
+  contentUrl?: string;
+  orderIndex: number;
+}
+
+export interface CourseLesson {
+  id: number;
+  title: string;
+  description?: string;
+  contentType: string;
+  orderIndex: number;
+  duration?: number;
+  resources?: LessonResource[];
+}
+
+export interface CourseTopic {
+  id: number;
+  title: string;
+  description?: string;
+  orderIndex: number;
+  lessons?: CourseLesson[];
+}
+
+export const useCourseTopics = (courseId?: string | number, enabled = true) => {
+  return useQuery({
+    queryKey: ['course-topics', String(courseId)],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/api/content/courses/${courseId}/topics`);
+      return (data?.topics || []) as CourseTopic[];
+    },
+    enabled: !!courseId && enabled,
+    retry: 1,
   });
 };
 

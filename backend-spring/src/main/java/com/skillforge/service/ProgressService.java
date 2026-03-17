@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.skillforge.dto.CourseDTO;
 import com.skillforge.dto.ProgressDTO;
+import com.skillforge.dto.GeneratedExamDTO;
 import com.skillforge.entity.Course;
 import com.skillforge.entity.CourseAdminAssignment;
 import com.skillforge.entity.Enrollment;
@@ -52,6 +53,9 @@ public class ProgressService {
 
     @Autowired
     private CourseAdminAssignmentRepository courseAdminAssignmentRepository;
+
+    @Autowired
+    private CourseExamService courseExamService;
 
     private static final Gson gson = new Gson();
 
@@ -131,31 +135,44 @@ public class ProgressService {
     public ProgressSummaryResponse getMyProgress(Long userId) {
         // Get all progress for user
         List<Progress> allProgress = progressRepository.findAllByUserId(userId);
+        Map<Long, List<Progress>> progressByCourseId = allProgress.stream()
+            .collect(Collectors.groupingBy(p -> p.getCourse().getId()));
 
-        // Group by course
-        Map<Long, ProgressSummaryByCache> summaryMap = new HashMap<>();
-        
-        for (Progress p : allProgress) {
-            Long courseId = p.getCourse().getId();
-            summaryMap.putIfAbsent(courseId, new ProgressSummaryByCache(
-                    p.getCourse(),
-                    0,  // totalModules
-                    0,  // completedModules
-                    new ArrayList<>()
-            ));
+        // Build summaries for all enrolled courses (including 0% progress)
+        List<Enrollment> enrollments = enrollmentRepository.findAllByUserIdOrderByEnrolledAtDesc(userId);
+        List<ProgressSummaryItem> summaries = enrollments.stream()
+            .map(enrollment -> {
+                Course course = enrollment.getCourse();
+                List<Progress> courseProgress = progressByCourseId.getOrDefault(course.getId(), List.of());
 
-            ProgressSummaryByCache summary = summaryMap.get(courseId);
-            summary.totalModules++;
-            if (p.getCompleted()) {
-                summary.completedModules++;
-            }
-            summary.modules.add(p);
-        }
+                List<CourseDTO.ModuleDTO> courseModules = parseCourseModules(course);
+                Set<String> courseModuleIds = resolveModuleIds(courseModules);
 
-        // Convert to response
-        List<ProgressSummaryItem> summaries = summaryMap.values().stream()
-                .map(this::convertToProgressSummaryItem)
-                .collect(Collectors.toList());
+                Set<String> completedModuleIds = courseProgress.stream()
+                    .filter(progress -> Boolean.TRUE.equals(progress.getCompleted()))
+                    .map(Progress::getModuleId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+
+                int totalModules = courseModuleIds.size();
+                int completedModules = (int) courseModuleIds.stream()
+                    .filter(completedModuleIds::contains)
+                    .count();
+                double completionPercentage = totalModules > 0
+                    ? (completedModules * 100.0) / totalModules
+                    : 0.0;
+
+                return ProgressSummaryItem.builder()
+                    .course(convertCourseToDTOWithParsedData(course))
+                    .totalModules(totalModules)
+                    .completedModules(completedModules)
+                    .completionPercentage(completionPercentage)
+                    .modules(courseProgress.stream()
+                        .map(this::convertProgressToDTO)
+                        .collect(Collectors.toList()))
+                    .build();
+            })
+            .collect(Collectors.toList());
 
         return ProgressSummaryResponse.builder()
                 .count(summaries.size())
@@ -179,8 +196,24 @@ public class ProgressService {
      */
     public QuizSubmitResponse submitQuiz(Long userId, String courseId, String moduleId,
                                          List<Boolean> answers, Long timeTakenSec) {
+        return submitQuiz(userId, courseId, moduleId, answers, null, timeTakenSec, null, null);
+    }
+
+    public QuizSubmitResponse submitQuiz(Long userId, String courseId, String moduleId,
+                                         List<Boolean> answers, Long timeTakenSec,
+                                         Integer proctoringViolationCount,
+                                         Boolean proctoringConfirmed) {
+        return submitQuiz(userId, courseId, moduleId, answers, null, timeTakenSec,
+                proctoringViolationCount, proctoringConfirmed);
+    }
+
+    public QuizSubmitResponse submitQuiz(Long userId, String courseId, String moduleId,
+                                         List<Boolean> answers, List<Integer> selectedAnswers,
+                                         Long timeTakenSec,
+                                         Integer proctoringViolationCount,
+                                         Boolean proctoringConfirmed) {
         // Validations
-        if (courseId == null || moduleId == null || answers == null) {
+        if (courseId == null || moduleId == null || (answers == null && selectedAnswers == null)) {
             throw new IllegalArgumentException("courseId, moduleId, and answers are required");
         }
 
@@ -197,16 +230,40 @@ public class ProgressService {
             throw new IllegalArgumentException("Not enrolled in this course");
         }
 
-        // Calculate score (10 points per correct answer, max 100)
-        int correctCount = (int) answers.stream().filter(a -> a).count();
-        int score = Math.min(correctCount * 10, 100);
+        Course course = courseRepository.findById(parsedCourseId)
+                .orElseThrow(() -> new IllegalArgumentException("Course not found"));
+
+        double completionPercentage = calculateCompletionPercentage(userId, course);
+        if (completionPercentage < 100.0) {
+            throw new IllegalArgumentException("Complete 100% of course content before attempting exam");
+        }
+
+        if (Boolean.FALSE.equals(proctoringConfirmed)) {
+            throw new IllegalArgumentException("Proctoring consent is required to submit exam");
+        }
+
+        if (proctoringViolationCount != null && proctoringViolationCount > 0) {
+            throw new IllegalArgumentException("Exam submission blocked due to proctoring policy violation");
+        }
+
+        List<Boolean> gradedAnswers = answers;
+        if (gradedAnswers == null && selectedAnswers != null) {
+            gradedAnswers = courseExamService.gradeAnswers(parsedCourseId, selectedAnswers);
+        }
+
+        if (gradedAnswers == null) {
+            throw new IllegalArgumentException("Unable to grade exam answers");
+        }
+
+        // Calculate score (20 points per correct answer for 5-question exams, scaled to 100)
+        int totalQuestions = Math.max(gradedAnswers.size(), 1);
+        int correctCount = (int) gradedAnswers.stream().filter(Boolean::booleanValue).count();
+        int score = (int) Math.round((correctCount * 100.0) / totalQuestions);
         boolean passed = score >= 60;
 
         // Create quiz attempt
         var user = new com.skillforge.entity.User();
         user.setId(userId);
-        var course = new Course();
-        course.setId(parsedCourseId);
 
         QuizAttempt attempt = QuizAttempt.builder()
                 .user(user)
@@ -231,6 +288,46 @@ public class ProgressService {
                 .build();
     }
 
+    private double calculateCompletionPercentage(Long userId, Course course) {
+        Set<String> courseModuleIds = resolveModuleIds(parseCourseModules(course));
+        int totalModules = courseModuleIds.size();
+        if (totalModules == 0) {
+            return 0.0;
+        }
+
+        Set<String> completedModuleIds = progressRepository.findCompletedModulesByUserAndCourse(userId, course.getId())
+            .stream()
+            .map(Progress::getModuleId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+        long completedCount = courseModuleIds.stream()
+            .filter(completedModuleIds::contains)
+            .count();
+
+        return (completedCount * 100.0) / totalModules;
+    }
+
+    private List<CourseDTO.ModuleDTO> parseCourseModules(Course course) {
+        Type moduleListType = new TypeToken<List<CourseDTO.ModuleDTO>>() {}.getType();
+        return course.getSyllabusModules() != null
+                ? gson.fromJson(course.getSyllabusModules(), moduleListType)
+                : List.of();
+    }
+
+    private Set<String> resolveModuleIds(List<CourseDTO.ModuleDTO> modules) {
+        Set<String> moduleIds = new LinkedHashSet<>();
+        for (int index = 0; index < modules.size(); index++) {
+            CourseDTO.ModuleDTO module = modules.get(index);
+            String moduleId = module != null ? module.getId() : null;
+            if (moduleId == null || moduleId.isBlank()) {
+                moduleId = "mod-" + index;
+            }
+            moduleIds.add(moduleId);
+        }
+        return moduleIds;
+    }
+
     /**
      * Convert Progress entity to ProgressDTO
      */
@@ -244,24 +341,6 @@ public class ProgressService {
                 .completedAt(progress.getCompletedAt())
                 .createdAt(progress.getCreatedAt())
                 .updatedAt(progress.getUpdatedAt())
-                .build();
-    }
-
-    /**
-     * Convert cached progress summary to response item
-     */
-    private ProgressSummaryItem convertToProgressSummaryItem(ProgressSummaryByCache cached) {
-        double completionPercentage = cached.totalModules > 0 ?
-                (cached.completedModules * 100.0) / cached.totalModules : 0.0;
-
-        return ProgressSummaryItem.builder()
-                .course(convertCourseToDTOWithParsedData(cached.course))
-                .totalModules(cached.totalModules)
-                .completedModules(cached.completedModules)
-                .completionPercentage(completionPercentage)
-                .modules(cached.modules.stream()
-                        .map(this::convertProgressToDTO)
-                        .collect(Collectors.toList()))
                 .build();
     }
 
@@ -304,53 +383,6 @@ public class ProgressService {
                 .createdAt(course.getCreatedAt())
                 .updatedAt(course.getUpdatedAt())
                 .build();
-    }
-
-    // Helper classes
-    public static class ProgressSummaryByCache {
-        public Course course;
-        public int totalModules;
-        public int completedModules;
-        public List<Progress> modules;
-
-        public ProgressSummaryByCache(Course course, int totalModules, int completedModules, List<Progress> modules) {
-            this.course = course;
-            this.totalModules = totalModules;
-            this.completedModules = completedModules;
-            this.modules = modules;
-        }
-
-        public Course getCourse() {
-            return course;
-        }
-
-        public void setCourse(Course course) {
-            this.course = course;
-        }
-
-        public int getTotalModules() {
-            return totalModules;
-        }
-
-        public void setTotalModules(int totalModules) {
-            this.totalModules = totalModules;
-        }
-
-        public int getCompletedModules() {
-            return completedModules;
-        }
-
-        public void setCompletedModules(int completedModules) {
-            this.completedModules = completedModules;
-        }
-
-        public List<Progress> getModules() {
-            return modules;
-        }
-
-        public void setModules(List<Progress> modules) {
-            this.modules = modules;
-        }
     }
 
     public static class ProgressSummaryResponse {

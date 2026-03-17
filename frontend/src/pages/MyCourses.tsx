@@ -5,9 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useEnrollments, Enrollment } from '@/hooks/useApi';
+import { useEnrollments, useCourseTopics, Enrollment } from '@/hooks/useApi';
 import { getSuggestedQuestions, sendSkillBotMessage, validateCourseContext } from '@/api/chatbotService';
-import { Send, Lightbulb, HelpCircle, BookOpen, Loader2, FileVideo, Play, Edit3 } from 'lucide-react';
+import { Send, Lightbulb, HelpCircle, BookOpen, Loader2, FileVideo, Play, Edit3, ChevronDown, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -15,16 +15,26 @@ export const MyCourses: FC = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const { data: enrollments = [], isLoading } = useEnrollments();
-  const isInstructor = user?.role === 'instructor' || user?.role === 'course_admin';
+  const isInstructor = user?.role === 'instructor';
   const [selectedTab, setSelectedTab] = useState('curriculum');
   const [aiQuestion, setAiQuestion] = useState('');
   const [chatMessages, setChatMessages] = useState<{ role: string; text: string }[]>([
     { role: 'bot', text: `Hi ${user?.name?.split(' ')[0] || 'there'}, ask me about this course and I will keep the answer short and focused on the uploaded material.` },
   ]);
 
+  const [expandedTopics, setExpandedTopics] = useState<Set<number>>(new Set());
+
   const typedEnrollments = enrollments as Enrollment[];
   const course = typedEnrollments[0];
   const courseModules = course?.course?.modules || [];
+  const { data: courseTopics = [], isLoading: topicsLoading } = useCourseTopics(course?.courseId, !!course?.courseId);
+
+  const toggleTopic = (id: number) =>
+    setExpandedTopics((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   const courseContext = course ? {
     courseId: String(course.courseId),
     courseTitle: course.courseTitle,
@@ -206,33 +216,89 @@ export const MyCourses: FC = () => {
               </Card>
             </TabsContent>
 
-            {/* Course Modules Tab */}
+            {/* Course Modules Tab - loaded from instructor-created content */}
             <TabsContent value="modules" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Course Modules</CardTitle>
+              <Card className="border-0 shadow-lg bg-white">
+                <CardHeader className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-transparent">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg text-slate-900">
+                      Course Modules
+                    </CardTitle>
+                    {courseTopics.length > 0 && (
+                      <span className="text-xs text-slate-500">{courseTopics.length} topic{courseTopics.length !== 1 ? 's' : ''}</span>
+                    )}
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  {courseModules.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No modules available</p>
+                <CardContent className="pt-4">
+                  {topicsLoading ? (
+                    <div className="flex items-center gap-2 py-6 justify-center text-slate-500">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span className="text-sm">Loading course content...</span>
+                    </div>
+                  ) : courseTopics.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <BookOpen className="h-10 w-10 mx-auto text-slate-300 mb-3" />
+                      <p className="text-sm text-slate-500">No content published yet by the instructor.</p>
+                    </div>
                   ) : (
-                    courseModules.map((mod, idx) => (
-                      <div
-                        key={mod.id}
-                        className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted cursor-pointer transition-colors"
-                      >
-                        <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold">
-                          {idx + 1}
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-sm">{mod.title}</h4>
-                          <p className="text-xs text-muted-foreground">
-                            {mod.duration} mins • {mod.contentType || 'video'}
-                          </p>
-                        </div>
-                        {mod.completed && <Badge variant="secondary">Completed</Badge>}
-                      </div>
-                    ))
+                    <div className="space-y-2">
+                      {courseTopics.map((topic, topicIdx) => {
+                        const isOpen = expandedTopics.has(topic.id);
+                        const lessons = topic.lessons || [];
+                        return (
+                          <div key={topic.id} className="rounded-xl border border-slate-100 overflow-hidden">
+                            {/* Topic header */}
+                            <button
+                              onClick={() => toggleTopic(topic.id)}
+                              className="w-full flex items-center gap-3 px-4 py-3 bg-white hover:bg-purple-50 transition-colors text-left"
+                            >
+                              <span className="flex-shrink-0 h-7 w-7 rounded-full bg-purple-100 text-purple-700 text-xs font-bold flex items-center justify-center">
+                                {topicIdx + 1}
+                              </span>
+                              <span className="flex-1 font-semibold text-sm text-slate-900">{topic.title}</span>
+                              {lessons.length > 0 && (
+                                <span className="text-xs text-slate-400 mr-2">{lessons.length} lesson{lessons.length !== 1 ? 's' : ''}</span>
+                              )}
+                              {isOpen
+                                ? <ChevronDown className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                                : <ChevronRight className="h-4 w-4 text-slate-400 flex-shrink-0" />}
+                            </button>
+
+                            {/* Lessons list */}
+                            {isOpen && (
+                              <div className="border-t border-slate-100 bg-slate-50">
+                                {lessons.length === 0 ? (
+                                  <p className="text-xs text-slate-400 px-12 py-3">No lessons in this topic yet.</p>
+                                ) : (
+                                  lessons.map((lesson, lessonIdx) => {
+                                    const typeIcon: Record<string, string> = {
+                                      video: '🎬', text: '📝', image: '🖼️',
+                                      pdf: '📄', code: '💻', link: '🔗',
+                                    };
+                                    const icon = typeIcon[lesson.contentType?.toLowerCase()] || '📖';
+                                    return (
+                                      <div
+                                        key={lesson.id}
+                                        className="flex items-center gap-3 px-12 py-2.5 border-b border-slate-100 last:border-b-0"
+                                      >
+                                        <span className="text-base">{icon}</span>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium text-slate-800 truncate">{lesson.title}</p>
+                                          {lesson.duration != null && (
+                                            <p className="text-xs text-slate-400">{lesson.duration} min{lesson.duration !== 1 ? 's' : ''}</p>
+                                          )}
+                                        </div>
+                                        <span className="text-xs text-slate-400">#{lessonIdx + 1}</span>
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </CardContent>
               </Card>

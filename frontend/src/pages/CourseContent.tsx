@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight, Play, FileText, Image as ImageIcon, Code, Link as LinkIcon, Loader2, Github, Linkedin } from 'lucide-react';
 import apiClient from '@/api/apiClient';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useCourse, useEnrollCourse, useEnrollments, Enrollment } from '@/hooks/useApi';
+import { useCourse, useEnrollCourse, useEnrollments, useMarkModuleComplete, useProgress, Enrollment, ProgressSummaryItem } from '@/hooks/useApi';
 import { getProfileInitials, normalizeExternalUrl } from '@/lib/instructorProfile';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -64,6 +64,8 @@ export const CourseContent: FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const { data: course } = useCourse(courseId);
   const { data: enrollments = [], isLoading: enrollmentsLoading } = useEnrollments();
+  const { data: courseProgress, isLoading: progressLoading } = useProgress(courseId);
+  const { mutate: markModuleComplete, isPending: markingModule } = useMarkModuleComplete();
   const { mutate: enrollCourse, isPending: enrolling } = useEnrollCourse();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +83,31 @@ export const CourseContent: FC = () => {
   }, [courseId, enrollments]);
   const isStudent = user?.role === 'student';
   const canAccessContent = !isStudent || !!existingEnrollment;
+  const progressItem = (courseProgress as ProgressSummaryItem | null) || null;
+
+  const moduleSequence = useMemo(() => {
+    const modules = course?.modules || [];
+    return modules.map((module, index) => ({
+      id: String(module.id || `mod-${index}`),
+      title: module.title || `Module ${index + 1}`,
+    }));
+  }, [course?.modules]);
+
+  const completedModuleIds = useMemo(() => {
+    const completed = (progressItem?.modules || [])
+      .filter((module: any) => module?.completed)
+      .map((module: any) => String(module?.moduleId || ''))
+      .filter(Boolean);
+    return new Set(completed);
+  }, [progressItem]);
+
+  const nextIncompleteModuleId = useMemo(
+    () => moduleSequence.find((module) => !completedModuleIds.has(module.id))?.id || null,
+    [moduleSequence, completedModuleIds]
+  );
+
+  const completionPercentage = Math.round(progressItem?.completionPercentage ?? existingEnrollment?.progress ?? 0);
+  const examUnlocked = completionPercentage >= 100;
 
   useEffect(() => {
     if (!courseId) {
@@ -102,8 +129,24 @@ export const CourseContent: FC = () => {
         navigate(`/course-content/${courseId}`);
       },
       onError: (error: any) => {
+        const status = error?.response?.status;
         const message = error?.response?.data?.error || error?.response?.data?.message || 'Enrollment failed';
-        setEnrollError(message);
+        
+        // Handle 404 (course not found) - likely stale cache
+        if (status === 404) {
+          setEnrollError('Course not found. Please refresh the page or clear browser cache.');
+          setTimeout(() => {
+            navigate('/courses');
+          }, 2000);
+        } 
+        // Handle 400 (already enrolled)
+        else if (status === 400 && message.toLowerCase().includes('already')) {
+          navigate(`/course-content/${courseId}`);
+        }
+        // Any other error
+        else {
+          setEnrollError(message);
+        }
       },
     });
   };
@@ -144,7 +187,15 @@ export const CourseContent: FC = () => {
     setExpandedLessons(newExpanded);
   };
 
-  if (loading || (isStudent && enrollmentsLoading)) {
+  const handleMarkNextModule = () => {
+    if (!courseId || !nextIncompleteModuleId) return;
+    markModuleComplete({
+      courseId: String(courseId),
+      moduleId: nextIncompleteModuleId,
+    });
+  };
+
+  if (loading || (isStudent && (enrollmentsLoading || progressLoading))) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100">
         <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
@@ -190,6 +241,43 @@ export const CourseContent: FC = () => {
           <p className="text-slate-600 text-lg">Study materials organized by topics and lessons</p>
           <p className="text-sm text-slate-700">Course ID: <span className="font-semibold">{courseId}</span></p>
         </div>
+
+        {isStudent && canAccessContent && (
+          <Card className="mb-8 border-0 shadow-lg bg-white">
+            <CardHeader className="border-b border-purple-200 bg-gradient-to-r from-purple-50 to-transparent">
+              <CardTitle className="text-xl text-slate-900">Course Progress</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-slate-700">Completion</span>
+                  <span className="text-sm text-slate-600">{completionPercentage}%</span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ width: `${completionPercentage}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={handleMarkNextModule} disabled={markingModule || !nextIncompleteModuleId || examUnlocked}>
+                  {markingModule ? 'Saving...' : examUnlocked ? 'Course Completed' : 'Mark Watched'}
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/exam')} disabled={!examUnlocked}>
+                  Attempt Exam
+                </Button>
+              </div>
+
+              {!examUnlocked && (
+                <p className="text-xs text-slate-600">
+                  Complete all modules to unlock the exam.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {course && (
           <Card className="mb-8 border-0 border-l-4 border-l-blue-500 bg-white shadow-lg">

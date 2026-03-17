@@ -147,18 +147,33 @@ public class ProgressController {
             String courseId = (String) request.get("courseId");
             String moduleId = (String) request.get("moduleId");
             List<Boolean> answers = (List<Boolean>) request.get("answers");
+            List<Integer> selectedAnswers = null;
             Long timeTakenSec = null;
+            Integer proctoringViolationCount = null;
+            Boolean proctoringConfirmed = null;
+            if (request.get("selectedAnswers") instanceof List<?> rawSelectedAnswers) {
+                selectedAnswers = rawSelectedAnswers.stream()
+                        .map(item -> item == null ? null : ((Number) item).intValue())
+                        .toList();
+            }
             if (request.get("timeTakenSec") != null) {
                 timeTakenSec = ((Number) request.get("timeTakenSec")).longValue();
             }
+            if (request.get("proctoringViolationCount") != null) {
+                proctoringViolationCount = ((Number) request.get("proctoringViolationCount")).intValue();
+            }
+            if (request.get("proctoringConfirmed") != null) {
+                proctoringConfirmed = (Boolean) request.get("proctoringConfirmed");
+            }
 
-            if (courseId == null || moduleId == null || answers == null) {
+                if (courseId == null || moduleId == null || (answers == null && selectedAnswers == null)) {
                 return ResponseEntity.badRequest()
                         .body(new ErrorResponse("courseId, moduleId, and answers are required"));
             }
 
             ProgressService.QuizSubmitResponse response = progressService.submitQuiz(
-                    userId, courseId, moduleId, answers, timeTakenSec);
+                    userId, courseId, moduleId, answers, selectedAnswers, timeTakenSec,
+                    proctoringViolationCount, proctoringConfirmed);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {

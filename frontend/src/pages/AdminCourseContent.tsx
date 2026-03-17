@@ -43,6 +43,22 @@ interface Resource {
   isVisible: boolean;
 }
 
+interface GeneratedExamQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswerIndex?: number;
+  explanation?: string;
+}
+
+interface GeneratedExam {
+  courseId: string;
+  title: string;
+  durationSeconds: number;
+  generatedAt?: string;
+  questions: GeneratedExamQuestion[];
+}
+
 const resourceTypes = ['VIDEO', 'NOTES', 'IMAGE', 'PDF', 'CODE_SNIPPET', 'ARTICLE', 'LINK'];
 
 export const AdminCourseContent: FC = () => {
@@ -54,6 +70,8 @@ export const AdminCourseContent: FC = () => {
   const [expandedTopics, setExpandedTopics] = useState<Set<number>>(new Set());
   const [expandedLessons, setExpandedLessons] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [generatedExam, setGeneratedExam] = useState<GeneratedExam | null>(null);
+  const [generatingExam, setGeneratingExam] = useState(false);
 
   // Form states
   const [newTopicForm, setNewTopicForm] = useState({ title: '', description: '', orderIndex: 1 });
@@ -68,6 +86,7 @@ export const AdminCourseContent: FC = () => {
   useEffect(() => {
     loadTopics();
     loadCourseMeta();
+    loadGeneratedExam();
   }, [courseId]);
 
   const loadCourseMeta = async () => {
@@ -92,6 +111,29 @@ export const AdminCourseContent: FC = () => {
       console.error('Failed to load topics:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadGeneratedExam = async () => {
+    if (!courseId) return;
+    try {
+      const res = await apiClient.get(`/api/exams/${courseId}`);
+      setGeneratedExam(res.data || null);
+    } catch {
+      setGeneratedExam(null);
+    }
+  };
+
+  const handleGenerateExam = async () => {
+    if (!courseId) return;
+    setGeneratingExam(true);
+    try {
+      const res = await apiClient.post(`/api/exams/generate/${courseId}`);
+      setGeneratedExam(res.data || null);
+    } catch (err: any) {
+      alert('Failed to generate exam: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setGeneratingExam(false);
     }
   };
 
@@ -230,6 +272,45 @@ export const AdminCourseContent: FC = () => {
           </Button>
         </div>
       </div>
+
+      <Card className="border-0 shadow-lg bg-white border-l-4 border-l-emerald-500">
+        <CardHeader className="border-b border-emerald-200 bg-gradient-to-r from-emerald-50 to-transparent">
+          <CardTitle className="flex items-center justify-between gap-3">
+            <span className="text-slate-900">AI Generated Exam</span>
+            <Button onClick={handleGenerateExam} disabled={generatingExam} className="bg-emerald-600 hover:bg-emerald-700">
+              {generatingExam ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+              {generatingExam ? 'Generating...' : generatedExam ? 'Regenerate with Gemini' : 'Generate with Gemini'}
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6 space-y-4">
+          {!generatedExam ? (
+            <p className="text-sm text-slate-600">No exam generated yet. Generate one from the course content for students to take.</p>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-4 text-sm text-slate-600">
+                <span>Title: <span className="font-semibold text-slate-900">{generatedExam.title}</span></span>
+                <span>Questions: <span className="font-semibold text-slate-900">{generatedExam.questions.length}</span></span>
+                <span>Duration: <span className="font-semibold text-slate-900">{Math.round((generatedExam.durationSeconds || 0) / 60)} min</span></span>
+              </div>
+              <div className="space-y-3">
+                {generatedExam.questions.map((question, index) => (
+                  <div key={question.id || index} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <p className="font-semibold text-slate-900">Q{index + 1}. {question.question}</p>
+                    <div className="mt-2 space-y-1 text-sm text-slate-700">
+                      {question.options.map((option, optionIndex) => (
+                        <p key={optionIndex} className={question.correctAnswerIndex === optionIndex ? 'font-semibold text-emerald-700' : ''}>
+                          {String.fromCharCode(65 + optionIndex)}. {option}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Add Topic Section */}
       <Card className="border-0 shadow-lg bg-gradient-to-r from-white to-purple-50 border-l-4 border-l-purple-500">

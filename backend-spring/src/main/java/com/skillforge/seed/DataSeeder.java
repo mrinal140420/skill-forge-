@@ -15,6 +15,7 @@ import com.skillforge.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -41,7 +42,7 @@ import java.util.Random;
  * Data is rich and realistic enough for dashboard testing
  */
 @Component
-@Profile("dev")  // Run only in dev profile
+@Profile({"dev", "prod"})
 public class DataSeeder implements CommandLineRunner {
     
     private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
@@ -64,17 +65,27 @@ public class DataSeeder implements CommandLineRunner {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+        @Value("${app.seed.enabled:true}")
+        private boolean seedEnabled;
+
     private static final Gson gson = new Gson();
     private static final Random random = new Random();
 
     @Override
     public void run(String... args) throws Exception {
-        log.info("🌱 Starting database seed with fresh data...");
+                if (!seedEnabled) {
+                        log.info("🌱 Database seeding is disabled via app.seed.enabled=false");
+                        return;
+                }
+
+                if (userRepository.count() > 0 || courseRepository.count() > 0) {
+                        log.info("🌱 Existing data found. Skipping seed to preserve persisted records.");
+                        return;
+                }
+
+                log.info("🌱 Starting one-time database seed...");
 
         try {
-            // Clear existing data
-            clearDatabase();
-
             // Seed users
             List<User> users = seedUsers();
 
@@ -91,19 +102,6 @@ public class DataSeeder implements CommandLineRunner {
         } catch (Exception e) {
             log.error("❌ Seeding failed", e);
         }
-    }
-
-    /**
-     * Clear existing data from database
-     */
-    private void clearDatabase() {
-        log.info("Clearing database...");
-        quizAttemptRepository.deleteAll();
-        progressRepository.deleteAll();
-        enrollmentRepository.deleteAll();
-        courseRepository.deleteAll();
-        userRepository.deleteAll();
-        log.info("Database cleared");
     }
 
     /**

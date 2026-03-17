@@ -34,7 +34,7 @@ public class GoogleGenerativeAIService {
     @Value("${google.ai.api-key:}")
     private String apiKey;
 
-    @Value("${google.ai.model:gemini-1.5-flash}")
+    @Value("${google.ai.model:gemini-2.5-flash}")
     private String modelName;
 
     public String generateResponse(String systemPrompt, String userMessage) {
@@ -61,14 +61,34 @@ public class GoogleGenerativeAIService {
         return !resolveApiKey().isBlank();
     }
 
+    public String generateStructuredContent(String systemPrompt, String userMessage) {
+        try {
+            String resolvedApiKey = resolveApiKey();
+            if (resolvedApiKey.isBlank()) {
+                return "";
+            }
+
+            String prompt = systemPrompt + "\n\nRequest: " + userMessage;
+            String response = callGemini(prompt, resolvedApiKey, 2048);
+            return response == null ? "" : response.trim();
+        } catch (Exception exception) {
+            logger.error("Error generating structured Google AI response", exception);
+            return "";
+        }
+    }
+
     public String getConfigurationStatus() {
         return isConfigured() ? "configured" : "fallback";
     }
 
     private String callGemini(String prompt, String resolvedApiKey) throws IOException, InterruptedException {
+        return callGemini(prompt, resolvedApiKey, 600);
+    }
+
+    private String callGemini(String prompt, String resolvedApiKey, int maxOutputTokens) throws IOException, InterruptedException {
         JsonObject generationConfig = new JsonObject();
         generationConfig.addProperty("temperature", 0.3);
-        generationConfig.addProperty("maxOutputTokens", 220);
+        generationConfig.addProperty("maxOutputTokens", maxOutputTokens);
 
         JsonObject part = new JsonObject();
         part.addProperty("text", prompt);
@@ -160,10 +180,10 @@ public class GoogleGenerativeAIService {
 
     private String normalizeResponse(String response) {
         String normalized = response.replace("*", " ").replaceAll("\\s+", " ").trim();
-        if (normalized.length() <= 320) {
+        if (normalized.length() <= 800) {
             return normalized;
         }
-        return normalized.substring(0, 317).trim() + "...";
+        return normalized.substring(0, 797).trim() + "...";
     }
 
     private String extractPromptValue(String prompt, String label) {

@@ -123,8 +123,8 @@ public class SkillBotService {
                 + "Sample Lessons: " + (lessonTitles.isBlank() ? "No lesson titles available yet" : lessonTitles) + "\n"
                 + "Rules:\n"
                 + "1. Answer only about this specific course.\n"
-                + "2. Keep the answer short, clear, and practical. Use at most 3 sentences.\n"
-                + "3. Start with the student's first name when replying.\n"
+                + "2. Keep the answer clear and practical. Aim for 3-5 sentences, covering the concept, a practical example, and a next step.\n"
+                + "3. Begin your reply with 'Hi " + firstName(user) + ",' followed by your answer.\n"
                 + "4. If the question is broad, anchor it to the course topics above.\n"
                 + "5. Do not answer off-topic or casual questions. Redirect the student to the course content.\n";
     }
@@ -191,11 +191,22 @@ public class SkillBotService {
         }
 
         String firstName = firstName(user);
-        if (!cleaned.toLowerCase(Locale.ROOT).startsWith(("hi " + firstName).toLowerCase(Locale.ROOT))) {
+        String lowerFirstName = firstName.toLowerCase(Locale.ROOT);
+        String lowerCleaned = cleaned.toLowerCase(Locale.ROOT);
+
+        // Strip a bare "Name," prefix that the AI sometimes adds instead of "Hi Name,"
+        if (lowerCleaned.startsWith(lowerFirstName + ",")) {
+            cleaned = cleaned.substring(firstName.length() + 1).trim();
+        } else if (lowerCleaned.startsWith(lowerFirstName + " ")) {
+            cleaned = cleaned.substring(firstName.length()).trim();
+            if (cleaned.startsWith(",")) cleaned = cleaned.substring(1).trim();
+        }
+
+        if (!cleaned.toLowerCase(Locale.ROOT).startsWith(("hi " + lowerFirstName))) {
             cleaned = "Hi " + firstName + ", " + cleaned;
         }
-        if (cleaned.length() > 340) {
-            cleaned = cleaned.substring(0, 337).trim() + "...";
+        if (cleaned.length() > 800) {
+            cleaned = cleaned.substring(0, 797).trim() + "...";
         }
         return cleaned;
     }

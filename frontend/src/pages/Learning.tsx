@@ -1,11 +1,11 @@
 import { FC, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { useCourse, useMarkModuleComplete, useSendChatMessage } from '@/hooks/useApi';
+import { useCourse, useMarkModuleComplete, useProgress, useSendChatMessage } from '@/hooks/useApi';
 import {
   Play,
   MessageCircle,
@@ -17,8 +17,10 @@ import {
 } from 'lucide-react';
 
 export const Learning: FC = () => {
+  const navigate = useNavigate();
   const { courseId, moduleId } = useParams<{ courseId: string; moduleId: string }>();
   const { data: course, isLoading } = useCourse(courseId);
+  const { data: courseProgress } = useProgress(courseId);
   const markComplete = useMarkModuleComplete();
   const sendChat = useSendChatMessage();
 
@@ -26,6 +28,7 @@ export const Learning: FC = () => {
     { id: 1, author: 'SkillBot', text: 'Hi! I\'m here to help. Feel free to ask any questions about this module.' },
   ]);
   const [inputValue, setInputValue] = useState('');
+  const [watchedMarked, setWatchedMarked] = useState(false);
 
   // Find the current module from the course
   const currentModule = course?.modules?.find((m) => m.id === moduleId) || course?.modules?.[0];
@@ -33,6 +36,12 @@ export const Learning: FC = () => {
   const courseTitle = course?.title || 'Course';
   const instructor = course?.instructor || 'SkillForge Faculty';
   const moduleDuration = currentModule?.duration ? `${currentModule.duration} minutes` : '';
+  const isCurrentModuleVideo = (currentModule?.contentType || 'video').toLowerCase() === 'video';
+  const isSingleVideoCourse =
+    (course?.modules?.length || 0) === 1 &&
+    (course?.modules?.[0]?.contentType || 'video').toLowerCase() === 'video';
+  const completionPercentage = Math.round((courseProgress as any)?.completionPercentage ?? 0);
+  const examUnlocked = completionPercentage >= 100;
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -58,7 +67,14 @@ export const Learning: FC = () => {
 
   const handleMarkComplete = () => {
     if (courseId && currentModule?.id) {
-      markComplete.mutate({ courseId, moduleId: currentModule.id });
+      markComplete.mutate(
+        { courseId, moduleId: currentModule.id },
+        {
+          onSuccess: () => {
+            setWatchedMarked(true);
+          },
+        }
+      );
     }
   };
 
@@ -194,13 +210,38 @@ export const Learning: FC = () => {
           <CardContent className="space-y-3">
             <div className="flex items-start gap-3">
               <div className="flex-1">
-                <p className="font-semibold text-sm">Mark Module Complete</p>
-                <p className="text-xs text-gray-600">Mark "{moduleTitle}" as completed</p>
+                <p className="font-semibold text-sm">
+                  {isSingleVideoCourse ? 'Mark Video Watched' : 'Mark Module Complete'}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {isSingleVideoCourse
+                    ? `After watching this single video module, mark it complete to unlock exam attempt.`
+                    : `Mark "${moduleTitle}" as completed`}
+                </p>
+                <p className="text-xs text-gray-600 mt-1">Overall progress: {completionPercentage}%</p>
               </div>
               <Button size="sm" onClick={handleMarkComplete} disabled={markComplete.isPending}>
-                {markComplete.isPending ? 'Saving...' : 'Complete'}
+                {markComplete.isPending
+                  ? 'Saving...'
+                  : isCurrentModuleVideo
+                  ? 'Mark Watched'
+                  : 'Complete'}
               </Button>
             </div>
+            {examUnlocked && (
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">Exam is unlocked</p>
+                  <p className="text-xs text-gray-600">Your course is 100% complete. You can attempt the exam now.</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => navigate('/exam')}>
+                  Attempt Exam
+                </Button>
+              </div>
+            )}
+            {!examUnlocked && watchedMarked && (
+              <p className="text-xs text-gray-600">Module marked complete. Finish remaining modules to unlock exam.</p>
+            )}
             {course?.modules && course.modules.length > 1 && (
               <div className="flex items-start gap-3">
                 <div className="flex-1">

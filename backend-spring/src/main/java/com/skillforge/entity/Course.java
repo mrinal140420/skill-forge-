@@ -76,6 +76,13 @@ public class Course {
     @Column(columnDefinition = "TEXT")
     private String prerequisites;
 
+    /**
+     * Generated exam definition stored as JSON.
+     * Structure: title, durationSeconds, generatedAt, questions[].
+     */
+    @Column(columnDefinition = "TEXT")
+    private String generatedExamJson;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -207,6 +214,14 @@ public class Course {
 
     public void setPrerequisites(String prerequisites) {
         this.prerequisites = prerequisites;
+    }
+
+    public String getGeneratedExamJson() {
+        return generatedExamJson;
+    }
+
+    public void setGeneratedExamJson(String generatedExamJson) {
+        this.generatedExamJson = generatedExamJson;
     }
 
     public LocalDateTime getCreatedAt() {

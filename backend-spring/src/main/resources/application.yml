@@ -75,10 +75,14 @@ jwt:
   secret: dev-secret-key-change-in-production-with-longer-key-1234567890abcdefghij
   expiration: 604800000
 
+app:
+  seed:
+    enabled: true
+
 google:
   ai:
     api-key: ${GOOGLE_API_KEY:}
-    model: ${GOOGLE_AI_MODEL:gemini-1.5-flash}
+    model: ${GOOGLE_AI_MODEL:gemini-2.5-flash}
 
 # ML Service Configuration
 ml:
@@ -117,12 +121,12 @@ spring:
       on-profile: prod
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:skillforge_prod}
+    username: ${DB_USER:skillforge_user}
+    password: ${DB_PASSWORD:skillforge_default_123}
     hikari:
       maximum-pool-size: 30
       minimum-idle: 10
@@ -134,7 +138,7 @@ jwt:
 google:
   ai:
     api-key: ${GOOGLE_API_KEY:}
-    model: ${GOOGLE_AI_MODEL:gemini-1.5-flash}
+    model: ${GOOGLE_AI_MODEL:gemini-2.5-flash}
 
 ml:
   base-url: ${ML_SERVICE_URL:http://ml-service:8000}

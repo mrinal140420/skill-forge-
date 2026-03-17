@@ -1,4 +1,5 @@
 import { FC, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +8,7 @@ import html2canvas from 'html2canvas';
 import { useEnrollments, useProgress, Enrollment, ProgressSummaryItem } from '@/hooks/useApi';
 
 export const Certifications: FC = () => {
+  const navigate = useNavigate();
   const { data: enrollments, isLoading: enrollLoading } = useEnrollments();
   const { data: progressData, isLoading: progLoading } = useProgress();
 
@@ -35,6 +37,8 @@ export const Certifications: FC = () => {
       } else {
         inProgress.push({
           id: e.id,
+          courseId: e.courseId,
+          currentModuleId: e.currentModuleId,
           course: e.courseTitle,
           progress: Math.round(pct),
           status: 'in-progress',
@@ -149,7 +153,9 @@ export const Certifications: FC = () => {
                     />
                   </div>
                 </div>
-                <Button className="w-full">Continue Learning</Button>
+                <Button className="w-full" onClick={() => navigate(`/course-content/${course.courseId}`)}>
+                  Continue Learning
+                </Button>
               </CardContent>
             </Card>
           ))}
