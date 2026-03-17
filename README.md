@@ -33,13 +33,16 @@
 
 ## Overview
 
-**SkillForge** is a full-stack learning platform designed for CSE students, offering 18+ courses across core domains — DSA, DBMS, OS, Computer Networks, OOP, System Design, AI/ML, and Cybersecurity. Each course has 5 modules with YouTube video integration, transcripts, and proctored quizzes.
+**SkillForge** is a full-stack learning platform designed for CSE students, offering 18+ courses across core domains — DSA, DBMS, OS, Computer Networks, OOP, System Design, AI/ML, and Cybersecurity. Beyond the original module-based curriculum, the platform now supports instructor-managed topic and lesson publishing, structured study resources, backend-generated exams, AI proctoring, and course-level progress gating.
 
 **Key highlights:**
 
 - **SkillBot AI Tutor** — 26+ concept explanations with chat history and feedback
 - **ML Recommendations** — Personalized course suggestions based on quiz performance and learning gaps
-- **AI-Proctored Exams** — Face detection, motion analysis, fullscreen enforcement, keyboard blocking, 2-strike auto-fail
+- **AI-Generated Exams** — Course exams can be generated and persisted per course from backend content using Gemini with fallback question generation
+- **AI-Proctored Exams** — Face detection, motion analysis, fullscreen enforcement, keyboard blocking, tab-switch detection, object/head-movement warnings, and auto-fail on repeated violations
+- **Instructor Content Builder** — Topic, lesson, and resource management for videos, notes, PDFs, links, images, and code-based study material
+- **Learning-to-Exam Flow** — Exam access can be gated behind course progress and completion flow instead of static client-only quizzes
 - **Progress Analytics** — Per-module tracking, streaks, badges (Quick Learner, 7-Day Streak, Quiz Master, Night Owl)
 - **OAuth2 Login** — Google and GitHub social authentication alongside JWT email/password auth
 - **Certificate Generation** — On course completion
@@ -90,8 +93,12 @@
 | 18+ CSE Courses | DSA, DBMS, OS, CN, OOP, System Design, AI/ML, Cybersecurity |
 | Course Curriculum | **[NEW]** Topic-based lesson structure with topic-wise study materials (videos, notes, images, PDFs, code snippets) |
 | 5 Modules per Course | YouTube videos, transcripts, quizzes per module |
+| Instructor-Published Course Content | Students see live topics and lessons created by instructors instead of static placeholder modules |
 | SkillBot AI Tutor | Chat-based concept explanations with feedback loop |
-| Proctored Exams | AI face/movement detection, keyboard blocking, tab-switch detection |
+| AI-Generated Exams | Backend-generated per-course exam papers based on course content, with persisted exam definitions and fallback generation |
+| Proctored Exams | AI face/movement detection, keyboard blocking, tab-switch detection, fullscreen enforcement, and violation tracking |
+| Exam Review & Results | Rich results view with score ring, answer review, explanations, and per-question correctness feedback |
+| Course Completion Gating | Learning flow can require progress before students attempt the final exam |
 | ML Recommendations | Weighted algorithm: weakness (45%) + engagement (25%) + gap (20%) + popularity (10%) |
 | Progress Tracking | Module completion, streaks, time-based analytics |
 | Badges & Certificates | Quick Learner, 7-Day Streak, Quiz Master, Night Owl |
@@ -99,14 +106,16 @@
 
 ### Admin Features
 - User management, course CRUD, **course content management (topics, lessons, resources)**
-- Analytics dashboard, role-based access control
+- Course-level exam generation and regeneration for instructor-authored content
+- Super Admin and Course Admin role-based dashboards
+- Analytics dashboard, role-based access control, instructor assignment workflows
 
 ### Security
 - BCrypt password hashing (10 rounds)
 - JWT HS512 tokens (7-day expiry)
 - Rate limiting on auth endpoints
 - CORS configuration
-- Exam anti-cheat: blocks Ctrl+C/V/X/A/S/P, ESC, F12, PrintScreen, right-click, tab-switch, window blur
+- Exam anti-cheat: blocks Ctrl+C/V/X/A/S/P, ESC, F12, PrintScreen, right-click, tab-switch, window blur, and repeated proctoring violations
 
 ---
 
@@ -117,9 +126,9 @@ skill-forge-master/
 ├── backend-spring/                  # Spring Boot 3.3.0 backend
 │   ├── src/main/java/com/skillforge/
 │   │   ├── config/                  # SecurityConfiguration, OpenAPI
-│   │   ├── controller/              # REST controllers (Auth, Course, Enrollment, Progress, Quiz, Recommendation, SkillBot)
+│   │   ├── controller/              # REST controllers (Auth, Course, Enrollment, Progress, Quiz, Recommendation, SkillBot, Content, Exams, Admin)
 │   │   ├── dto/                     # Data Transfer Objects
-│   │   ├── entity/                  # JPA entities (User, Course, Enrollment, Progress, QuizAttempt)
+│   │   ├── entity/                  # JPA entities (User, Course, Enrollment, Progress, QuizAttempt, Topic, Lesson, LessonResource, CourseAdminAssignment)
 │   │   ├── repository/              # Spring Data JPA repositories
 │   │   ├── security/                # JWT filter, OAuth2 handler, auth manager
 │   │   ├── service/                 # Business logic layer
@@ -212,7 +221,7 @@ GITHUB_CLIENT_SECRET=your-github-client-secret
 
 The backend starts on **http://localhost:8081** with:
 - H2 file-based database (data persists across restarts at `backend-spring/data/skillforgedb.mv.db`)
-- Auto-seeding: 1 admin + 10 students + 18 courses + enrollments on first run
+- Auto-seeding: 1 super admin + 1 instructor + 8 students + 18 courses + enrollments on first run
 - Swagger UI: **http://localhost:8081/swagger-ui.html**
 - H2 Console: **http://localhost:8081/h2-console** (JDBC URL: `jdbc:h2:file:./data/skillforgedb`)
 
@@ -347,6 +356,8 @@ All three services must be running for full functionality. The backend provides 
 | `POST` | `/api/auth/register` | No | Register new user |
 | `POST` | `/api/auth/login` | No | Login, returns JWT |
 | `GET` | `/api/auth/me` | JWT | Get current user profile |
+| `PUT` | `/api/auth/me` | JWT | Update current user profile |
+| `POST` | `/api/auth/change-password` | JWT | Change current user password |
 | `GET` | `/oauth2/authorization/google` | No | Start Google OAuth flow |
 | `GET` | `/oauth2/authorization/github` | No | Start GitHub OAuth flow |
 
@@ -378,6 +389,20 @@ POST /api/auth/login
 | `GET` | `/api/courses` | No | List all courses (supports `?search=`, `?category=`, `?level=`, `?featured=true`) |
 | `GET` | `/api/courses/{id}` | No | Get course details with modules |
 | `POST` | `/api/courses` | Admin | Create course |
+
+### Course Content
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/api/content/courses/{courseId}/topics` | JWT | Get published topic and lesson structure for a course |
+| `POST` | `/api/content/courses/{courseId}/topics` | Course Admin / Super Admin | Create a topic for a course |
+
+### Exams
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/api/exams/{courseId}` | JWT | Get the generated exam definition for a course |
+| `POST` | `/api/exams/generate/{courseId}` | Course Admin / Super Admin | Generate or regenerate a persisted exam for a course |
 
 ### Enrollments
 
@@ -423,7 +448,7 @@ Use the **Authorize** button with `Bearer <your-jwt-token>` to test authenticate
 
 ## Database Schema
 
-The application uses 5 core tables:
+The application started with 5 core tables and now includes additional content-management tables for instructor-authored learning material.
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
@@ -442,9 +467,9 @@ The application uses 5 core tables:
                      │ (JSON)       │     │ id (PK)      │
                      │ prerequisites│     │ user_id (FK) │
                      │ (JSON)       │     │ course_id(FK)│
-                     └──────────────┘     │ module_id    │
-                                          │ completed    │
-┌──────────────┐                          │ completed_at │
+                     │ generated_   │     │ module_id    │
+                     │ exam_json    │     │ completed    │
+┌──────────────┐     └──────────────┘     │ completed_at │
 │ quiz_attempt │                          └──────────────┘
 ├──────────────┤
 │ id (PK)      │
@@ -458,9 +483,11 @@ The application uses 5 core tables:
 └──────────────┘
 ```
 
-- **Roles**: `STUDENT`, `ADMIN`
+- Additional content tables: `topic`, `lesson`, `lesson_resource`, and instructor assignment mappings
+- **Roles**: `STUDENT`, `COURSE_ADMIN`, `SUPER_ADMIN`, `ADMIN` (legacy compatibility alias)
 - **Enrollment unique constraint**: One enrollment per user per course
 - **Quiz scoring**: Each correct answer = 10 points, pass threshold ≥ 60%
+- **Generated exam storage**: Course-level generated exam definitions are persisted in the `course` table as JSON for reuse/regeneration
 - **Dev DB**: H2 file-based at `backend-spring/data/skillforgedb.mv.db` (persists across restarts)
 - **Prod DB**: PostgreSQL 16
 
@@ -556,16 +583,15 @@ The `DataSeeder` auto-creates these users on first run:
 | Role | Email | Password |
 |------|-------|----------|
 | Admin | `admin@skillforge.com` | `admin123` |
-| Student | `rajesh.kumar@skillforge.com` | `password123` |
-| Student | `priya.sharma@skillforge.com` | `password123` |
-| Student | `arjun.singh@skillforge.com` | `password123` |
-| Student | `divya.patel@skillforge.com` | `password123` |
-| Student | `amit.gupta@skillforge.com` | `password123` |
-| Student | `neha.verma@skillforge.com` | `password123` |
-| Student | `rohan.joshi@skillforge.com` | `password123` |
-| Student | `sakshi.mishra@skillforge.com` | `password123` |
-| Student | `vikram.das@skillforge.com` | `password123` |
-| Student | `pooja.iyer@skillforge.com` | `password123` |
+| Instructor | `instructor@skillforge.com` | `instructor123` |
+| Student | `rajesh.kumar@skillforge.com` | `student123` |
+| Student | `priya.sharma@skillforge.com` | `student123` |
+| Student | `arjun.singh@skillforge.com` | `student123` |
+| Student | `divya.patel@skillforge.com` | `student123` |
+| Student | `amit.gupta@skillforge.com` | `student123` |
+| Student | `neha.verma@skillforge.com` | `student123` |
+| Student | `rohan.joshi@skillforge.com` | `student123` |
+| Student | `pooja.iyer@skillforge.com` | `student123` |
 
 > The database is file-based (H2) in dev mode — data persists across restarts. The seeder only runs when the database is empty.
 
