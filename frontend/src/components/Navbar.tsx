@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
 import { Menu } from 'lucide-react';
 import { DEFAULT_PLATFORM_BRANDING, PLATFORM_BRANDING_UPDATED_EVENT, readPlatformBranding } from '@/lib/platformBranding';
+import { Button } from '@/components/ui/button';
 
 export const Navbar: FC = () => {
   const navigate = useNavigate();
@@ -74,14 +75,31 @@ export const Navbar: FC = () => {
           </div>
         </Link>
 
-        {user && (
-          <button
-            onClick={toggleSidebar}
-            className="ml-auto inline-flex rounded-xl border border-white/10 p-2 text-white transition-colors hover:bg-white/10 lg:hidden"
-          >
-            <Menu className="h-6 w-6" />
-          </button>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {!user && (
+            <>
+              <Link to="/login">
+                <Button variant="ghost" className="text-white hover:bg-white/10 hover:text-white">
+                  Login
+                </Button>
+              </Link>
+              <Link to="/register">
+                <Button className="bg-blue-600 text-white hover:bg-blue-700">
+                  Sign Up
+                </Button>
+              </Link>
+            </>
+          )}
+
+          {user && (
+            <button
+              onClick={toggleSidebar}
+              className="inline-flex rounded-xl border border-white/10 p-2 text-white transition-colors hover:bg-white/10 lg:hidden"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          )}
+        </div>
       </div>
     </nav>
   );
