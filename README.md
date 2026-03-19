@@ -158,8 +158,8 @@ skill-forge-master/
 │   ├── main.py                      # Recommendation & difficulty endpoints
 │   └── requirements.txt             # Python dependencies
 │
-├── docker-compose-spring.yml        # Docker Compose (Spring Boot + PostgreSQL)
-├── docker-compose.yml               # Docker Compose (legacy Node.js)
+├── docker-compose.yml               # Docker Compose (default: Spring Boot + H2 + React + FastAPI)
+├── docker-compose-spring.yml        # Optional Docker Compose (Spring Boot + PostgreSQL)
 └── .gitignore
 ```
 
@@ -495,22 +495,23 @@ The application started with 5 core tables and now includes additional content-m
 
 ## Docker Deployment
 
-### Using Docker Compose (Spring Boot Stack)
+### Using Docker Compose (Default - Recommended)
 
 ```bash
-docker-compose -f docker-compose-spring.yml up -d
+docker compose up --build -d
 ```
 
 This starts:
-- **PostgreSQL 16** on port 5432
-- **Spring Boot Backend** on port 8080
+- **Spring Boot Backend** on port 8081
 - **FastAPI ML Service** on port 8000
 - **React Frontend** on port 5173
 
-### Using Docker Compose (Legacy Node.js Stack)
+This default stack uses the same development profile as local runs, including file-based H2 persistence (Docker volume-backed) and seeded test users.
+
+### Using Docker Compose (PostgreSQL Variant)
 
 ```bash
-docker-compose up -d
+docker compose -f docker-compose-spring.yml up --build -d
 ```
 
 ---

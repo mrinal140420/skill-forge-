@@ -1,55 +1,50 @@
-version: '3.8'
-
 services:
-  mongodb:
-    image: mongo:7
-    container_name: skillforge-mongodb
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_DATABASE: skillforge
-    volumes:
-      - mongodb_data:/data/db
-
   backend:
-    build: ./backend
+    build:
+      context: ./backend-spring
+      dockerfile: Dockerfile
     container_name: skillforge-backend
     ports:
-      - "5000:5000"
+      - "8081:8081"
     environment:
-      MONGODB_URI: mongodb://mongodb:27017/skillforge
-      JWT_SECRET: ${JWT_SECRET:-dev-secret-key}
-      PORT: 5000
-      FRONTEND_URL: http://localhost:5173
-      ML_SERVICE_URL: http://ml-service:8000
-    depends_on:
-      - mongodb
-    command: npm start
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: 8081
+      ML_BASE_URL: http://ml-service:8000
+    volumes:
+      - backend_data:/app/data
+      - ./backend-spring/logs:/app/logs
+    networks:
+      - skillforge-network
 
   ml-service:
-    build: ./ml-service
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
     container_name: skillforge-ml
     ports:
       - "8000:8000"
     environment:
-      BACKEND_URL: http://backend:5000
+      BACKEND_URL: http://backend:8081
     depends_on:
       - backend
-    command: python -m uvicorn main:app --host 0.0.0.0 --port 8000
+    networks:
+      - skillforge-network
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: skillforge-frontend
     ports:
       - "5173:5173"
-    environment:
-      VITE_API_URL: http://localhost:5000/api
     depends_on:
       - backend
+    networks:
+      - skillforge-network
 
 volumes:
-  mongodb_data:
+  backend_data:
 
 networks:
-  default:
-    name: skillforge-network
+  skillforge-network:
+    driver: bridge

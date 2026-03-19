@@ -28,13 +28,14 @@ services:
       dockerfile: Dockerfile
     container_name: skillforge-backend
     ports:
-      - "8080:8080"
+      - "8081:8081"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/skillforge
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: 8081
       JWT_SECRET: dev-secret-key-minimum-32-characters-long-key
       ML_BASE_URL: http://ml-service:8000
       JAVA_OPTS: -Xmx512m -Xms256m
@@ -44,7 +45,7 @@ services:
     networks:
       - skillforge-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -56,7 +57,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      BACKEND_URL: http://backend:8080
+      BACKEND_URL: http://backend:8081
     depends_on:
       - backend
     networks:
@@ -70,7 +71,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      VITE_API_URL: http://localhost:8080/api
+      VITE_API_URL: http://localhost:8081
     depends_on:
       - backend
     networks:

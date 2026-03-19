@@ -30,6 +30,7 @@ services:
     container_name: skillforge-backend
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8081
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/skillforge_prod
       SPRING_DATASOURCE_USERNAME: skillforge_user
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-skillforge_default_123}
