@@ -3096,3 +3096,9 @@ Caused by: org.postgresql.util.PSQLException: ERROR: value too long for type cha
 	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2725)
 	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2412)
 	... 148 common frames omitted
+2026-03-23 07:01:21.222 [http-nio-8081-exec-2] INFO  c.s.service.RecommendationService - Calling ML service for user: 11 with enrolled courses: 2
+2026-03-23 07:01:21.236 [http-nio-8081-exec-2] INFO  c.s.service.RecommendationService - ML service returned 8 recommended courses
+2026-03-23 07:01:37.379 [http-nio-8081-exec-8] INFO  c.s.s.OAuth2AuthenticationSuccessHandler - OAuth2 login success for: MRINAL (r9.mrinal@gmail.com)
+2026-03-23 07:01:37.388 [http-nio-8081-exec-8] INFO  c.s.s.OAuth2AuthenticationSuccessHandler - Redirecting OAuth2 user r9.mrinal@gmail.com to frontend
+2026-03-23 07:01:37.574 [http-nio-8081-exec-2] INFO  c.s.service.RecommendationService - Calling ML service for user: 11 with enrolled courses: 2
+2026-03-23 07:01:37.579 [http-nio-8081-exec-2] INFO  c.s.service.RecommendationService - ML service returned 8 recommended courses

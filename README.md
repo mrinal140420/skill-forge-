@@ -639,6 +639,9 @@ docker compose -f docker-compose-prod.yml --profile tools run --rm db-backup
 
 # Restore database from backup
 DB_DUMP_FILE=your_dump_file.dump docker compose -f docker-compose-prod.yml --profile tools run --rm db-restore
+
+## Important: 
+docker compose down stops containers but **preserves your database data** in the  postgres_prod_data volume.Data will still be there when you run up again. Use docker compose down -v only if you want to completely erase the database.
 ```
 
 ---
