@@ -151,6 +151,8 @@ public class ProgressController {
             Long timeTakenSec = null;
             Integer proctoringViolationCount = null;
             Boolean proctoringConfirmed = null;
+            String proctoringFailureReason = null;
+            Boolean proctoringFailed = null;
             if (request.get("selectedAnswers") instanceof List<?> rawSelectedAnswers) {
                 selectedAnswers = rawSelectedAnswers.stream()
                         .map(item -> item == null ? null : ((Number) item).intValue())
@@ -165,15 +167,22 @@ public class ProgressController {
             if (request.get("proctoringConfirmed") != null) {
                 proctoringConfirmed = (Boolean) request.get("proctoringConfirmed");
             }
+            if (request.get("proctoringFailureReason") != null) {
+                proctoringFailureReason = String.valueOf(request.get("proctoringFailureReason"));
+            }
+            if (request.get("proctoringFailed") != null) {
+                proctoringFailed = (Boolean) request.get("proctoringFailed");
+            }
 
-                if (courseId == null || moduleId == null || (answers == null && selectedAnswers == null)) {
+            boolean isProctoringFailedSubmission = Boolean.TRUE.equals(proctoringFailed);
+            if (courseId == null || moduleId == null || (!isProctoringFailedSubmission && answers == null && selectedAnswers == null)) {
                 return ResponseEntity.badRequest()
                         .body(new ErrorResponse("courseId, moduleId, and answers are required"));
             }
 
             ProgressService.QuizSubmitResponse response = progressService.submitQuiz(
                     userId, courseId, moduleId, answers, selectedAnswers, timeTakenSec,
-                    proctoringViolationCount, proctoringConfirmed);
+                    proctoringViolationCount, proctoringConfirmed, proctoringFailureReason, proctoringFailed);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {

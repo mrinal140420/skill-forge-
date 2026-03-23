@@ -55,6 +55,15 @@ public class QuizAttempt {
     @Column(nullable = false)
     private Boolean passed;
 
+    @Column(nullable = false, columnDefinition = "integer default 0")
+    private Integer proctoringViolationCount = 0;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private Boolean proctoringFailed = false;
+
+    @Column(length = 500)
+    private String proctoringFailureReason;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -74,9 +83,14 @@ public class QuizAttempt {
         this.score = score;
         this.timeTakenSec = timeTakenSec;
         this.passed = passed;
+        this.proctoringViolationCount = 0;
+        this.proctoringFailed = false;
+        this.proctoringFailureReason = null;
     }
 
-    public QuizAttempt(Long id, User user, Course course, String moduleId, Integer score, Long timeTakenSec, Boolean passed, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public QuizAttempt(Long id, User user, Course course, String moduleId, Integer score, Long timeTakenSec, Boolean passed,
+                       Integer proctoringViolationCount, Boolean proctoringFailed, String proctoringFailureReason,
+                       LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.user = user;
         this.course = course;
@@ -84,6 +98,9 @@ public class QuizAttempt {
         this.score = score;
         this.timeTakenSec = timeTakenSec;
         this.passed = passed;
+        this.proctoringViolationCount = proctoringViolationCount;
+        this.proctoringFailed = proctoringFailed;
+        this.proctoringFailureReason = proctoringFailureReason;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -145,6 +162,30 @@ public class QuizAttempt {
         this.passed = passed;
     }
 
+    public Integer getProctoringViolationCount() {
+        return proctoringViolationCount;
+    }
+
+    public void setProctoringViolationCount(Integer proctoringViolationCount) {
+        this.proctoringViolationCount = proctoringViolationCount;
+    }
+
+    public Boolean getProctoringFailed() {
+        return proctoringFailed;
+    }
+
+    public void setProctoringFailed(Boolean proctoringFailed) {
+        this.proctoringFailed = proctoringFailed;
+    }
+
+    public String getProctoringFailureReason() {
+        return proctoringFailureReason;
+    }
+
+    public void setProctoringFailureReason(String proctoringFailureReason) {
+        this.proctoringFailureReason = proctoringFailureReason;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -174,6 +215,9 @@ public class QuizAttempt {
         private Integer score;
         private Long timeTakenSec;
         private Boolean passed;
+        private Integer proctoringViolationCount;
+        private Boolean proctoringFailed;
+        private String proctoringFailureReason;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
@@ -212,6 +256,21 @@ public class QuizAttempt {
             return this;
         }
 
+        public QuizAttemptBuilder proctoringViolationCount(Integer proctoringViolationCount) {
+            this.proctoringViolationCount = proctoringViolationCount;
+            return this;
+        }
+
+        public QuizAttemptBuilder proctoringFailed(Boolean proctoringFailed) {
+            this.proctoringFailed = proctoringFailed;
+            return this;
+        }
+
+        public QuizAttemptBuilder proctoringFailureReason(String proctoringFailureReason) {
+            this.proctoringFailureReason = proctoringFailureReason;
+            return this;
+        }
+
         public QuizAttemptBuilder createdAt(LocalDateTime createdAt) {
             this.createdAt = createdAt;
             return this;
@@ -231,6 +290,9 @@ public class QuizAttempt {
             quizAttempt.score = this.score;
             quizAttempt.timeTakenSec = this.timeTakenSec;
             quizAttempt.passed = this.passed;
+            quizAttempt.proctoringViolationCount = this.proctoringViolationCount != null ? this.proctoringViolationCount : 0;
+            quizAttempt.proctoringFailed = this.proctoringFailed != null ? this.proctoringFailed : false;
+            quizAttempt.proctoringFailureReason = this.proctoringFailureReason;
             quizAttempt.createdAt = this.createdAt;
             quizAttempt.updatedAt = this.updatedAt;
             return quizAttempt;

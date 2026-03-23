@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 public class ProgressService {
     
     private static final Logger log = LoggerFactory.getLogger(ProgressService.class);
+    private static final int MAX_PROCTORING_VIOLATIONS = 3;
 
     @Autowired
     private ProgressRepository progressRepository;
@@ -196,7 +197,7 @@ public class ProgressService {
      */
     public QuizSubmitResponse submitQuiz(Long userId, String courseId, String moduleId,
                                          List<Boolean> answers, Long timeTakenSec) {
-        return submitQuiz(userId, courseId, moduleId, answers, null, timeTakenSec, null, null);
+        return submitQuiz(userId, courseId, moduleId, answers, null, timeTakenSec, null, null, null, null);
     }
 
     public QuizSubmitResponse submitQuiz(Long userId, String courseId, String moduleId,
@@ -204,17 +205,19 @@ public class ProgressService {
                                          Integer proctoringViolationCount,
                                          Boolean proctoringConfirmed) {
         return submitQuiz(userId, courseId, moduleId, answers, null, timeTakenSec,
-                proctoringViolationCount, proctoringConfirmed);
+                proctoringViolationCount, proctoringConfirmed, null, null);
     }
 
     public QuizSubmitResponse submitQuiz(Long userId, String courseId, String moduleId,
                                          List<Boolean> answers, List<Integer> selectedAnswers,
                                          Long timeTakenSec,
                                          Integer proctoringViolationCount,
-                                         Boolean proctoringConfirmed) {
+                                         Boolean proctoringConfirmed,
+                                         String proctoringFailureReason,
+                                         Boolean proctoringFailed) {
         // Validations
-        if (courseId == null || moduleId == null || (answers == null && selectedAnswers == null)) {
-            throw new IllegalArgumentException("courseId, moduleId, and answers are required");
+        if (courseId == null || moduleId == null) {
+            throw new IllegalArgumentException("courseId and moduleId are required");
         }
 
         Long parsedCourseId;
@@ -242,24 +245,41 @@ public class ProgressService {
             throw new IllegalArgumentException("Proctoring consent is required to submit exam");
         }
 
-        if (proctoringViolationCount != null && proctoringViolationCount > 0) {
-            throw new IllegalArgumentException("Exam submission blocked due to proctoring policy violation");
+        int violationCount = Math.max(0, proctoringViolationCount != null ? proctoringViolationCount : 0);
+        boolean failedByProctoring = Boolean.TRUE.equals(proctoringFailed) || violationCount >= MAX_PROCTORING_VIOLATIONS;
+        if (Boolean.TRUE.equals(proctoringFailed) && violationCount < MAX_PROCTORING_VIOLATIONS) {
+            violationCount = MAX_PROCTORING_VIOLATIONS;
         }
 
-        List<Boolean> gradedAnswers = answers;
-        if (gradedAnswers == null && selectedAnswers != null) {
-            gradedAnswers = courseExamService.gradeAnswers(parsedCourseId, selectedAnswers);
+        if (!failedByProctoring && (answers == null && selectedAnswers == null)) {
+            throw new IllegalArgumentException("answers are required unless proctoring already failed");
         }
 
-        if (gradedAnswers == null) {
-            throw new IllegalArgumentException("Unable to grade exam answers");
-        }
+        String normalizedProctoringFailureReason = null;
+        int score;
+        boolean passed;
 
-        // Calculate score (20 points per correct answer for 5-question exams, scaled to 100)
-        int totalQuestions = Math.max(gradedAnswers.size(), 1);
-        int correctCount = (int) gradedAnswers.stream().filter(Boolean::booleanValue).count();
-        int score = (int) Math.round((correctCount * 100.0) / totalQuestions);
-        boolean passed = score >= 60;
+        if (failedByProctoring) {
+            score = 0;
+            passed = false;
+            normalizedProctoringFailureReason = (proctoringFailureReason != null && !proctoringFailureReason.isBlank())
+                    ? proctoringFailureReason.trim()
+                    : "MAX_VIOLATIONS_REACHED: Proctoring policy violation threshold exceeded";
+        } else {
+            List<Boolean> gradedAnswers = answers;
+            if (gradedAnswers == null && selectedAnswers != null) {
+                gradedAnswers = courseExamService.gradeAnswers(parsedCourseId, selectedAnswers);
+            }
+
+            if (gradedAnswers == null) {
+                throw new IllegalArgumentException("Unable to grade exam answers");
+            }
+
+            int totalQuestions = Math.max(gradedAnswers.size(), 1);
+            int correctCount = (int) gradedAnswers.stream().filter(Boolean::booleanValue).count();
+            score = (int) Math.round((correctCount * 100.0) / totalQuestions);
+            passed = score >= 60;
+        }
 
         // Create quiz attempt
         var user = new com.skillforge.entity.User();
@@ -272,19 +292,29 @@ public class ProgressService {
                 .score(score)
                 .timeTakenSec(timeTakenSec != null ? timeTakenSec : 0)
                 .passed(passed)
+                .proctoringViolationCount(violationCount)
+                .proctoringFailed(failedByProctoring)
+                .proctoringFailureReason(normalizedProctoringFailureReason)
                 .build();
 
         attempt = quizAttemptRepository.save(attempt);
-        log.info("Quiz submitted by user {} for module {} - Score: {}", userId, moduleId, score);
+            log.info("Quiz submitted by user {} for module {} - Score: {}, Proctoring violations: {}, Proctoring failed: {}",
+                userId, moduleId, score, violationCount, failedByProctoring);
 
-        // Return response
-        String feedback = passed ? "Great job!" : "Try again to improve your score.";
+            String feedback;
+            if (failedByProctoring) {
+                feedback = "Exam failed due to proctoring policy violation.";
+            } else {
+                feedback = passed ? "Great job!" : "Try again to improve your score.";
+            }
         
         return QuizSubmitResponse.builder()
                 .score(score)
                 .passed(passed)
                 .feedback(feedback)
                 .attemptId(attempt.getId())
+                .proctoringFailed(failedByProctoring)
+                .proctoringFailureReason(normalizedProctoringFailureReason)
                 .build();
     }
 
@@ -543,15 +573,20 @@ public class ProgressService {
         private Boolean passed;
         private String feedback;
         private Long attemptId;
+        private Boolean proctoringFailed;
+        private String proctoringFailureReason;
 
         public QuizSubmitResponse() {
         }
 
-        public QuizSubmitResponse(Integer score, Boolean passed, String feedback, Long attemptId) {
+        public QuizSubmitResponse(Integer score, Boolean passed, String feedback, Long attemptId,
+                                  Boolean proctoringFailed, String proctoringFailureReason) {
             this.score = score;
             this.passed = passed;
             this.feedback = feedback;
             this.attemptId = attemptId;
+            this.proctoringFailed = proctoringFailed;
+            this.proctoringFailureReason = proctoringFailureReason;
         }
 
         public Integer getScore() {
@@ -586,6 +621,22 @@ public class ProgressService {
             this.attemptId = attemptId;
         }
 
+        public Boolean getProctoringFailed() {
+            return proctoringFailed;
+        }
+
+        public void setProctoringFailed(Boolean proctoringFailed) {
+            this.proctoringFailed = proctoringFailed;
+        }
+
+        public String getProctoringFailureReason() {
+            return proctoringFailureReason;
+        }
+
+        public void setProctoringFailureReason(String proctoringFailureReason) {
+            this.proctoringFailureReason = proctoringFailureReason;
+        }
+
         public static QuizSubmitResponseBuilder builder() {
             return new QuizSubmitResponseBuilder();
         }
@@ -595,6 +646,8 @@ public class ProgressService {
             private Boolean passed;
             private String feedback;
             private Long attemptId;
+            private Boolean proctoringFailed;
+            private String proctoringFailureReason;
 
             public QuizSubmitResponseBuilder score(Integer score) {
                 this.score = score;
@@ -616,8 +669,18 @@ public class ProgressService {
                 return this;
             }
 
+            public QuizSubmitResponseBuilder proctoringFailed(Boolean proctoringFailed) {
+                this.proctoringFailed = proctoringFailed;
+                return this;
+            }
+
+            public QuizSubmitResponseBuilder proctoringFailureReason(String proctoringFailureReason) {
+                this.proctoringFailureReason = proctoringFailureReason;
+                return this;
+            }
+
             public QuizSubmitResponse build() {
-                return new QuizSubmitResponse(score, passed, feedback, attemptId);
+                return new QuizSubmitResponse(score, passed, feedback, attemptId, proctoringFailed, proctoringFailureReason);
             }
         }
     }

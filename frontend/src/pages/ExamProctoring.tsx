@@ -37,6 +37,26 @@ type Course = {
 
 const EXAM_DURATION_SECONDS = 300;
 const MAX_VIOLATIONS = 3;
+const SCREENSHOT_BLACKOUT_SECONDS = 8;
+const MONITOR_INTERVAL_MS = 1400;
+
+type ProctoringViolationCode =
+  | "NO_FACE"
+  | "MULTIPLE_FACES"
+  | "HEAD_MOVEMENT"
+  | "PHONE_DETECTED"
+  | "TAB_SWITCH"
+  | "WINDOW_FOCUS_CHANGE"
+  | "COPY_ATTEMPT"
+  | "CUT_ATTEMPT"
+  | "PASTE_ATTEMPT"
+  | "RIGHT_CLICK"
+  | "ESC_PRESSED"
+  | "SCREENSHOT_ATTEMPT"
+  | "DEVTOOLS_ATTEMPT"
+  | "ALT_TAB_ATTEMPT"
+  | "NAVIGATION_ATTEMPT"
+  | "BLOCKED_SHORTCUT";
 
 type Question = {
   id: string;
@@ -82,6 +102,9 @@ export const ExamProctoring: FC = () => {
   const transitionToRulesRef = useRef(false);
   const analysisCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const previousFrameSignatureRef = useRef<number[] | null>(null);
+  const phoneSuspicionStreakRef = useRef(0);
+  const headMovementStreakRef = useRef(0);
+  const offCenterStreakRef = useRef(0);
   const examFinishedRef = useRef(false);
 
   const [showCameraCheck, setShowCameraCheck] = useState(false);
@@ -108,6 +131,8 @@ export const ExamProctoring: FC = () => {
   const [proctorStatus, setProctorStatus] = useState("AI monitor active");
   const [monitoringMode, setMonitoringMode] = useState<"ai" | "basic">("basic");
   const [monitoringEvents, setMonitoringEvents] = useState<string[]>([]);
+  const [blackoutUntil, setBlackoutUntil] = useState<number | null>(null);
+  const [blackoutCountdown, setBlackoutCountdown] = useState(0);
   const examQuery = useCourseExam(selectedCourse?.id, !!selectedCourse);
   const examQuestions = useMemo<Question[]>(() => {
     const questions = examQuery.data?.questions || [];
@@ -174,12 +199,15 @@ export const ExamProctoring: FC = () => {
 
     const intervalId = window.setInterval(() => {
       runAIMonitoringCheck();
-    }, 2500);
+    }, MONITOR_INTERVAL_MS);
 
     return () => {
       window.clearInterval(intervalId);
       lastFaceCenterRef.current = null;
       monitorBusyRef.current = false;
+      phoneSuspicionStreakRef.current = 0;
+      headMovementStreakRef.current = 0;
+      offCenterStreakRef.current = 0;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showExam, cameraEnabled, cameraStream]);
@@ -286,8 +314,9 @@ export const ExamProctoring: FC = () => {
     const scorePercentage = Math.round((correctAnswers / examQuestions.length) * 100);
     setScore(cancelled ? 0 : scorePercentage);
 
-    if (!cancelled && selectedCourse) {
+    if (selectedCourse) {
       try {
+        const normalizedReason = reason || cancelReason || "";
         await submitQuiz.mutateAsync({
           courseId: selectedCourse.id,
           moduleId: selectedCourse.examModuleId,
@@ -295,6 +324,8 @@ export const ExamProctoring: FC = () => {
           timeTakenSec: examDurationSeconds - timeLeft,
           proctoringConfirmed: true,
           proctoringViolationCount: violationsRef.current,
+          proctoringFailed: cancelled,
+          proctoringFailureReason: cancelled ? normalizedReason : null,
         });
       } catch (error: any) {
         const message = error?.response?.data?.error || "Exam submission failed on server";
@@ -305,8 +336,11 @@ export const ExamProctoring: FC = () => {
     setShowResults(true);
   };
 
-  const registerViolation = (reason: string) => {
+  const formatViolationReason = (code: ProctoringViolationCode, message: string) => `${code}: ${message}`;
+
+  const registerViolation = (code: ProctoringViolationCode, message: string) => {
     if (examFinishedRef.current) return;
+    const reason = formatViolationReason(code, message);
     const next = violationsRef.current + 1;
     violationsRef.current = next;
     setViolations(next);
@@ -321,15 +355,45 @@ export const ExamProctoring: FC = () => {
     setMonitoringEvents((prev) => [`${timestamp} • ${message}`, ...prev].slice(0, 5));
   };
 
-  const throttledAlert = (key: string, message: string, asViolation = true) => {
+  const triggerScreenshotBlackout = () => {
+    const until = Date.now() + SCREENSHOT_BLACKOUT_SECONDS * 1000;
+    setBlackoutUntil(until);
+    setBlackoutCountdown(SCREENSHOT_BLACKOUT_SECONDS);
+  };
+
+  useEffect(() => {
+    if (!showExam || !blackoutUntil) return;
+
+    const timer = window.setInterval(() => {
+      const remainingMs = blackoutUntil - Date.now();
+      const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+      setBlackoutCountdown(remainingSeconds);
+      if (remainingSeconds <= 0) {
+        setBlackoutUntil(null);
+      }
+    }, 200);
+
+    return () => window.clearInterval(timer);
+  }, [showExam, blackoutUntil]);
+
+  const getAlertCooldownMs = (key: string) => {
+    if (key === "head_movement" || key === "motion_detected") return 2500;
+    if (key === "phone_detected" || key === "phone_fallback") return 2000;
+    if (key === "face_missing" || key === "multiple_faces") return 2000;
+    if (key === "navigation_attempt") return 1200;
+    return 8000;
+  };
+
+  const throttledAlert = (key: string, code: ProctoringViolationCode, message: string, asViolation = true) => {
     const now = Date.now();
     const last = lastAlertAtRef.current[key] || 0;
-    if (now - last < 8000) return;
+    const cooldownMs = getAlertCooldownMs(key);
+    if (now - last < cooldownMs) return;
     lastAlertAtRef.current[key] = now;
     setProctorStatus(message);
     addMonitoringEvent(message);
     if (asViolation) {
-      registerViolation(message);
+      registerViolation(code, message);
     }
   };
 
@@ -345,9 +409,15 @@ export const ExamProctoring: FC = () => {
     context.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
     const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
     const signature: number[] = [];
+    const lowerHalfMarker: boolean[] = [];
+    const samplingStep = 2;
 
-    for (let index = 0; index < data.length; index += 64) {
-      signature.push((data[index] + data[index + 1] + data[index + 2]) / 3);
+    for (let y = 0; y < canvas.height; y += samplingStep) {
+      for (let x = 0; x < canvas.width; x += samplingStep) {
+        const index = (y * canvas.width + x) * 4;
+        signature.push((data[index] + data[index + 1] + data[index + 2]) / 3);
+        lowerHalfMarker.push(y >= canvas.height * 0.58);
+      }
     }
 
     const previous = previousFrameSignatureRef.current;
@@ -357,16 +427,28 @@ export const ExamProctoring: FC = () => {
     }
 
     let changed = 0;
+    let changedLowerHalf = 0;
+    let lowerHalfSamples = 0;
     for (let index = 0; index < signature.length; index++) {
-      if (Math.abs(signature[index] - previous[index]) > 28) {
+      const isLowerHalf = lowerHalfMarker[index];
+      if (isLowerHalf) {
+        lowerHalfSamples++;
+      }
+      if (Math.abs(signature[index] - previous[index]) > 22) {
         changed++;
+        if (isLowerHalf) {
+          changedLowerHalf++;
+        }
       }
     }
 
     const changeRatio = changed / Math.max(signature.length, 1);
-    if (changeRatio > 0.24) {
-      throttledAlert("motion_detected", "Sudden movement or new object detected in camera frame.", false);
-    }
+    const lowerHalfChangeRatio = changedLowerHalf / Math.max(lowerHalfSamples, 1);
+
+    return {
+      changeRatio,
+      lowerHalfChangeRatio,
+    };
   };
 
   const runAIMonitoringCheck = async () => {
@@ -376,7 +458,7 @@ export const ExamProctoring: FC = () => {
 
     monitorBusyRef.current = true;
     try {
-      analyzeFrameMotion(videoEl);
+      const motion = analyzeFrameMotion(videoEl);
 
       const win = window as any;
       if (!faceDetectorRef.current && win.FaceDetector) {
@@ -395,13 +477,13 @@ export const ExamProctoring: FC = () => {
         const faces = await faceDetectorRef.current.detect(videoEl);
 
         if (!faces || faces.length === 0) {
-          throttledAlert("face_missing", "No face visible. Keep your face in camera.");
+          throttledAlert("face_missing", "NO_FACE", "No face visible. Keep your face in camera.");
           monitorBusyRef.current = false;
           return;
         }
 
         if (faces.length > 1) {
-          throttledAlert("multiple_faces", "Multiple faces detected. Only candidate should be present.");
+          throttledAlert("multiple_faces", "MULTIPLE_FACES", "Multiple faces detected. Only candidate should be present.");
           monitorBusyRef.current = false;
           return;
         }
@@ -416,9 +498,29 @@ export const ExamProctoring: FC = () => {
           const dx = Math.abs(center.x - lastFaceCenterRef.current.x);
           const dy = Math.abs(center.y - lastFaceCenterRef.current.y);
           const movementRatio = Math.max(dx / Math.max(videoEl.videoWidth, 1), dy / Math.max(videoEl.videoHeight, 1));
-          if (movementRatio > 0.18) {
-            throttledAlert("head_movement", "Excessive head movement detected. Stay centered.", false);
+          if (movementRatio > 0.12) {
+            headMovementStreakRef.current += 1;
+            if (headMovementStreakRef.current >= 2) {
+              throttledAlert("head_movement", "HEAD_MOVEMENT", "Excessive head movement detected. Stay centered.", true);
+              headMovementStreakRef.current = 0;
+            }
+          } else {
+            headMovementStreakRef.current = Math.max(0, headMovementStreakRef.current - 1);
           }
+        }
+
+        const videoCenterX = Math.max(videoEl.videoWidth, 1) / 2;
+        const videoCenterY = Math.max(videoEl.videoHeight, 1) / 2;
+        const centerOffsetX = Math.abs(center.x - videoCenterX) / Math.max(videoEl.videoWidth, 1);
+        const centerOffsetY = Math.abs(center.y - videoCenterY) / Math.max(videoEl.videoHeight, 1);
+        if (Math.max(centerOffsetX, centerOffsetY) > 0.30) {
+          offCenterStreakRef.current += 1;
+          if (offCenterStreakRef.current >= 2) {
+            throttledAlert("off_center", "HEAD_MOVEMENT", "Face moved too far from center. Keep your face fully centered.", true);
+            offCenterStreakRef.current = 0;
+          }
+        } else {
+          offCenterStreakRef.current = 0;
         }
 
         lastFaceCenterRef.current = center;
@@ -432,10 +534,27 @@ export const ExamProctoring: FC = () => {
               return label.includes("phone") || label.includes("mobile") || label.includes("cell");
             });
             if (phoneDetected) {
-              throttledAlert("phone_detected", "Mobile device detected near candidate.");
+              phoneSuspicionStreakRef.current = 0;
+              throttledAlert("phone_detected", "PHONE_DETECTED", "Mobile device detected near candidate.");
             }
           } catch {
             // Ignore unsupported object detection runtime failures
+          }
+        }
+
+        if (motion) {
+          if (motion.changeRatio > 0.17) {
+            throttledAlert("motion_detected", "HEAD_MOVEMENT", "Sudden movement or new object detected in camera frame.", true);
+          }
+
+          if (motion.lowerHalfChangeRatio > 0.24 && motion.changeRatio > 0.15) {
+            phoneSuspicionStreakRef.current += 1;
+            if (phoneSuspicionStreakRef.current >= 2) {
+              throttledAlert("phone_fallback", "PHONE_DETECTED", "Possible mobile/object usage detected near hands.");
+              phoneSuspicionStreakRef.current = 0;
+            }
+          } else {
+            phoneSuspicionStreakRef.current = 0;
           }
         }
       } else {
@@ -465,55 +584,107 @@ export const ExamProctoring: FC = () => {
     if (!showExam) return;
 
     document.documentElement.requestFullscreen?.().catch(() => undefined);
+    window.history.pushState({ examLocked: true }, "", window.location.href);
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        registerViolation("Tab or window switch detected");
+        registerViolation("TAB_SWITCH", "Tab or window switch detected");
       }
     };
 
-    const handleWindowBlur = () => registerViolation("Window focus change detected");
+    const handleWindowBlur = () => registerViolation("WINDOW_FOCUS_CHANGE", "Window focus change detected");
 
-    const preventAction = (event: Event, reason: string) => {
+    const handlePopState = () => {
+      window.history.pushState({ examLocked: true }, "", window.location.href);
+      throttledAlert("navigation_attempt", "NAVIGATION_ATTEMPT", "Back/forward navigation attempt blocked during exam", true);
+    };
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
-      registerViolation(reason);
+      event.returnValue = "";
+      throttledAlert("navigation_attempt", "NAVIGATION_ATTEMPT", "Attempt to leave or reload exam page detected", true);
+      return "";
+    };
+
+    const handleDocumentClickCapture = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest("a[href]");
+      if (anchor) {
+        event.preventDefault();
+        event.stopPropagation();
+        throttledAlert("navigation_attempt", "NAVIGATION_ATTEMPT", "Navigation via sidebar/menu blocked during exam", true);
+      }
+    };
+
+    const preventAction = (event: Event, code: ProctoringViolationCode, reason: string) => {
+      event.preventDefault();
+      registerViolation(code, reason);
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
       const blockedCtrlKeys = ["c", "v", "x", "a", "s", "p"];
       const isCtrlBlocked = (event.ctrlKey || event.metaKey) && blockedCtrlKeys.includes(key);
-      const isBlockedKey =
-        key === "escape" || key === "printscreen" || key === "f12" || (event.altKey && key === "tab");
 
-      if (isCtrlBlocked || isBlockedKey) {
+      if (key === "printscreen") {
         event.preventDefault();
-        registerViolation(`Blocked key detected: ${event.key}`);
+        triggerScreenshotBlackout();
+        registerViolation("SCREENSHOT_ATTEMPT", "Screenshot key detected. Screen blocked temporarily.");
+        return;
+      }
+
+      if (key === "escape") {
+        event.preventDefault();
+        registerViolation("ESC_PRESSED", "ESC key blocked during exam.");
+        return;
+      }
+
+      if (key === "f12") {
+        event.preventDefault();
+        registerViolation("DEVTOOLS_ATTEMPT", "Developer tools shortcut blocked.");
+        return;
+      }
+
+      if (event.altKey && key === "tab") {
+        event.preventDefault();
+        registerViolation("ALT_TAB_ATTEMPT", "Alt+Tab blocked during exam.");
+        return;
+      }
+
+      if (isCtrlBlocked) {
+        event.preventDefault();
+        registerViolation("BLOCKED_SHORTCUT", `Blocked shortcut detected: ${event.key}`);
       }
     };
 
-    const handleCopy = (event: Event) => preventAction(event, "Copy action detected");
-    const handleCut = (event: Event) => preventAction(event, "Cut action detected");
-    const handlePaste = (event: Event) => preventAction(event, "Paste action detected");
-    const handleContextMenu = (event: Event) => preventAction(event, "Right-click detected");
+    const handleCopy = (event: Event) => preventAction(event, "COPY_ATTEMPT", "Copy action detected");
+    const handleCut = (event: Event) => preventAction(event, "CUT_ATTEMPT", "Cut action detected");
+    const handlePaste = (event: Event) => preventAction(event, "PASTE_ATTEMPT", "Paste action detected");
+    const handleContextMenu = (event: Event) => preventAction(event, "RIGHT_CLICK", "Right-click detected");
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("copy", handleCopy);
     document.addEventListener("cut", handleCut);
     document.addEventListener("paste", handlePaste);
     document.addEventListener("contextmenu", handleContextMenu);
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("click", handleDocumentClickCapture, true);
 
     return () =>
       {
         document.removeEventListener("visibilitychange", handleVisibilityChange);
         window.removeEventListener("blur", handleWindowBlur);
+        window.removeEventListener("popstate", handlePopState);
+        window.removeEventListener("beforeunload", handleBeforeUnload);
         document.removeEventListener("copy", handleCopy);
         document.removeEventListener("cut", handleCut);
         document.removeEventListener("paste", handlePaste);
         document.removeEventListener("contextmenu", handleContextMenu);
         document.removeEventListener("keydown", handleKeyDown);
+        document.removeEventListener("click", handleDocumentClickCapture, true);
       };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showExam]);
@@ -524,6 +695,15 @@ export const ExamProctoring: FC = () => {
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white p-6">
+        {blackoutUntil && blackoutCountdown > 0 && (
+          <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-red-400 text-sm font-semibold uppercase tracking-wide">Screenshot Attempt Blocked</p>
+              <p className="text-white text-lg mt-2">Screen access restricted for {blackoutCountdown}s</p>
+              <p className="text-gray-400 text-sm mt-2">Any repeated violations will fail the exam.</p>
+            </div>
+          </div>
+        )}
         <div className="max-w-6xl mx-auto">
           <Card className="bg-gray-900 border-gray-700 mb-6">
             <CardContent className="pt-6">
@@ -1091,8 +1271,9 @@ export const ExamProctoring: FC = () => {
                 <p>✓ No tab/window switch allowed</p>
                 <p>✓ No copy/paste/cut/right-click allowed</p>
                 <p>✓ No ESC / PrintScreen / F12 / Alt+Tab allowed</p>
+                <p>✓ Screenshot attempts trigger temporary black-screen penalty</p>
                 <p>✓ Live camera feed shown during exam</p>
-                <p>✓ AI checks face visibility and movement in real time</p>
+                <p>✓ AI checks face visibility, head movement, and phone/object detection</p>
                 <p>✓ Mobile/object detection runs when browser supports AI object detector</p>
               </CardContent>
             </Card>
