@@ -2,6 +2,7 @@ package com.skillforge.repository;
 
 import com.skillforge.entity.Progress;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -41,4 +42,7 @@ public interface ProgressRepository extends JpaRepository<Progress, Long> {
             @Param("userId") Long userId,
             @Param("courseId") Long courseId
     );
+
+    @Modifying
+    long deleteByUserId(Long userId);
 }

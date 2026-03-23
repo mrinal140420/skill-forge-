@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Download, Award } from 'lucide-react';
+import { Download, Award, Share2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { useEnrollments, useProgress, Enrollment, ProgressSummaryItem } from '@/hooks/useApi';
+import { useAuthStore } from '@/stores/authStore';
+import skillForgeLogo from '@/assets/skillforge-logo.svg';
 
 export const Certifications: FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const { data: enrollments, isLoading: enrollLoading } = useEnrollments();
   const { data: progressData, isLoading: progLoading } = useProgress();
 
@@ -48,22 +51,86 @@ export const Certifications: FC = () => {
 
     return { certificates: certs, incompleteCourses: inProgress };
   }, [enrollments, progressData]);
-  const downloadCertificate = async (certId: number) => {
-    const element = document.getElementById(`cert-${certId}`);
+  const getCertificateNumber = (cert: { id: number; course: string; date: string }) => {
+    const titleToken = cert.course.replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase() || 'COURSE';
+    const dateToken = new Date(cert.date).toISOString().slice(0, 10).replace(/-/g, '');
+    return `SF-${titleToken}-${dateToken}-${cert.id}`;
+  };
+
+  const getCertificateElement = (certId: number) => document.getElementById(`cert-${certId}`);
+
+  const getCertificateCanvas = async (certId: number) => {
+    const element = getCertificateElement(certId);
     if (element) {
-      const canvas = await html2canvas(element);
-      const link = document.createElement('a');
-      link.href = canvas.toDataURL();
-      link.download = `certificate-${certId}.png`;
-      link.click();
+      return html2canvas(element, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+      });
+    }
+    return null;
+  };
+
+  const downloadCertificate = async (cert: { id: number; course: string; date: string }) => {
+    const canvas = await getCertificateCanvas(cert.id);
+    if (!canvas) return;
+
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `${cert.course.replace(/\s+/g, '-').toLowerCase()}-certificate.png`;
+    link.click();
+  };
+
+  const shareCertificate = async (cert: { id: number; course: string; date: string }) => {
+    const certificateNumber = getCertificateNumber(cert);
+    const verificationUrl = `${window.location.origin}/certifications?certificate=${certificateNumber}`;
+    const shareText = `SkillForge Certificate\nCourse: ${cert.course}\nRecipient: ${user?.name || 'Learner'}\nCertificate ID: ${certificateNumber}\nIssued: ${new Date(cert.date).toLocaleDateString()}\nVerify: ${verificationUrl}`;
+
+    const canvas = await getCertificateCanvas(cert.id);
+
+    if (canvas && navigator.share) {
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+
+      if (blob) {
+        const file = new File([blob], `${certificateNumber}.png`, { type: 'image/png' });
+
+        try {
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: `${cert.course} - SkillForge Certificate`,
+              text: shareText,
+              files: [file],
+            });
+            return;
+          }
+
+          await navigator.share({
+            title: `${cert.course} - SkillForge Certificate`,
+            text: shareText,
+            url: verificationUrl,
+          });
+          return;
+        } catch {
+        }
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareText);
+      alert('Certificate details copied to clipboard. You can now paste and share it.');
+    } catch {
+      alert('Sharing is not supported on this browser. Please use Download Certificate.');
     }
   };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Certifications & Achievements</h1>
-        <p className="text-muted-foreground">Your earned certificates and progress</p>
+    <div className="space-y-8 p-8 bg-gradient-to-br from-slate-50 via-indigo-50 to-slate-100 min-h-screen">
+      <div className="space-y-2">
+        <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-900 to-indigo-900 bg-clip-text text-transparent flex items-center gap-3">
+          <Award className="h-10 w-10 text-indigo-700" />
+          Certifications & Achievements
+        </h1>
+        <p className="text-slate-600 text-lg">Your earned certificates and progress</p>
       </div>
 
       {/* Completed Certificates */}
@@ -79,9 +146,9 @@ export const Certifications: FC = () => {
             </CardContent>
           </Card>
         ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className={`grid grid-cols-1 gap-6 ${certificates.length > 1 ? '2xl:grid-cols-2' : ''}`}>
           {certificates.map((cert) => (
-            <Card key={cert.id} className="border-primary/50">
+            <Card key={cert.id} className="border-primary/50 h-full">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -97,24 +164,53 @@ export const Certifications: FC = () => {
               <CardContent className="space-y-4">
                 <div
                   id={`cert-${cert.id}`}
-                  className="bg-gradient-to-br from-primary/10 to-primary/5 p-8 rounded-lg border-2 border-dashed border-primary text-center"
+                  className="bg-white p-8 rounded-lg border-2 border-slate-300 text-center shadow-sm"
                 >
-                  <div className="text-sm text-muted-foreground mb-2">Certificate of Completion</div>
-                  <h3 className="text-lg font-bold mb-4">{cert.course}</h3>
-                  <div className="text-3xl font-bold text-primary mb-2">{cert.score}%</div>
-                  <p className="text-xs text-muted-foreground">Successfully completed with distinction</p>
+                  <div className="flex items-center justify-center gap-3 mb-6">
+                    <img src={skillForgeLogo} alt="SkillForge" className="h-10 w-10" />
+                    <div className="text-left">
+                      <div className="text-xs uppercase tracking-wider text-slate-500">AI Learning Platform</div>
+                      <div className="text-xl font-bold text-slate-900">SkillForge</div>
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-slate-500 mb-2">Certificate of Completion</div>
+                  <div className="text-sm text-slate-500">Presented to</div>
+                  <div className="text-2xl font-bold text-slate-900 mb-3">{user?.name || 'Learner'}</div>
+
+                  <div className="text-sm text-slate-500">for successfully completing</div>
+                  <h3 className="text-3xl font-bold mb-4 text-slate-900">{cert.course}</h3>
+
+                  <div className="text-5xl font-extrabold text-slate-900 mb-2">{cert.score}%</div>
+                  <p className="text-sm text-slate-600 mb-5">Successfully completed with distinction</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-slate-600 border-t border-slate-200 pt-4 mt-2">
+                    <div>
+                      <div className="font-semibold text-slate-800">Certificate ID</div>
+                      <div>{getCertificateNumber(cert)}</div>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-slate-800">Issue Date</div>
+                      <div>{new Date(cert.date).toLocaleDateString()}</div>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-slate-800">Issued By</div>
+                      <div>SkillForge Academy</div>
+                    </div>
+                  </div>
                 </div>
 
                 <Button
                   variant="outline"
                   className="w-full gap-2"
-                  onClick={() => downloadCertificate(cert.id)}
+                  onClick={() => downloadCertificate(cert)}
                 >
                   <Download className="h-4 w-4" />
                   Download Certificate
                 </Button>
 
-                <Button variant="ghost" className="w-full">
+                <Button variant="ghost" className="w-full gap-2" onClick={() => shareCertificate(cert)}>
+                  <Share2 className="h-4 w-4" />
                   Share Certificate
                 </Button>
               </CardContent>
@@ -134,7 +230,7 @@ export const Certifications: FC = () => {
             </CardContent>
           </Card>
         ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className={`grid grid-cols-1 gap-6 ${incompleteCourses.length > 1 ? '2xl:grid-cols-2' : ''}`}>
           {incompleteCourses.map((course) => (
             <Card key={course.id}>
               <CardHeader>

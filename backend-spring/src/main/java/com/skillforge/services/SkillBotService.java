@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 @Service
 public class SkillBotService {
     private static final Logger log = LoggerFactory.getLogger(SkillBotService.class);
+    private static final Pattern SENTENCE_SPLIT_PATTERN = Pattern.compile("(?<=[.!?])\\s+");
     private static final List<String> OFF_TOPIC_KEYWORDS = List.of(
             "weather", "sports", "match", "cricket", "football", "politics", "election",
             "movie", "music", "celebrity", "meme", "joke", "funny", "dating", "relationship",
@@ -72,7 +74,7 @@ public class SkillBotService {
             messageType = "clarification";
         } else {
             botResponse = googleGenerativeAIService.generateResponse(buildSystemPrompt(course, user), userMessage);
-            botResponse = ensurePersonalized(user, course, botResponse);
+            botResponse = ensurePersonalized(user, course, userMessage, botResponse);
         }
 
         ChatMessage chatMessage = new ChatMessage();
@@ -123,7 +125,7 @@ public class SkillBotService {
                 + "Sample Lessons: " + (lessonTitles.isBlank() ? "No lesson titles available yet" : lessonTitles) + "\n"
                 + "Rules:\n"
                 + "1. Answer only about this specific course.\n"
-                + "2. Keep the answer clear and practical. Aim for 3-5 sentences, covering the concept, a practical example, and a next step.\n"
+                + "2. Keep the answer clear and practical. Aim for 4-7 sentences: concept, why it matters, one practical example, and one next step.\n"
                 + "3. Begin your reply with 'Hi " + firstName(user) + ",' followed by your answer.\n"
                 + "4. If the question is broad, anchor it to the course topics above.\n"
                 + "5. Do not answer off-topic or casual questions. Redirect the student to the course content.\n";
@@ -184,7 +186,7 @@ public class SkillBotService {
             + ". Ask about a topic, lesson, definition, or example from this course and I'll answer directly.";
     }
 
-    private String ensurePersonalized(User user, Course course, String response) {
+    private String ensurePersonalized(User user, Course course, String userMessage, String response) {
         String cleaned = response == null ? "" : response.trim();
         if (cleaned.isBlank()) {
             cleaned = "Please review the current lesson material for " + course.getTitle() + " and ask me about one topic at a time.";
@@ -205,10 +207,108 @@ public class SkillBotService {
         if (!cleaned.toLowerCase(Locale.ROOT).startsWith(("hi " + lowerFirstName))) {
             cleaned = "Hi " + firstName + ", " + cleaned;
         }
+
+        cleaned = enforceGracefulAnswer(cleaned, user, course, userMessage);
+
         if (cleaned.length() > 800) {
             cleaned = cleaned.substring(0, 797).trim() + "...";
         }
         return cleaned;
+    }
+
+    private String enforceGracefulAnswer(String response, User user, Course course, String userMessage) {
+        String normalized = response.replaceAll("\\s+", " ").trim();
+        int sentenceCount = countSentences(normalized);
+        boolean hasExample = containsAny(normalized.toLowerCase(Locale.ROOT), "for example", "example", "e.g.");
+        boolean hasNextStep = containsAny(normalized.toLowerCase(Locale.ROOT), "next step", "try", "practice", "review", "start with");
+        boolean endsWell = normalized.endsWith(".") || normalized.endsWith("!") || normalized.endsWith("?");
+        boolean tooShort = normalized.length() < 170 || sentenceCount < 3;
+
+        if (tooShort || !endsWell) {
+            return buildGracefulFallbackAnswer(user, course, userMessage);
+        }
+
+        String enriched = normalized;
+        if (isAiMlConceptQuestion(course, userMessage) && !containsAny(enriched.toLowerCase(Locale.ROOT), "supervised", "unsupervised", "features", "labels", "evaluation")) {
+            enriched = enriched + " In AI/ML basics, key pillars include supervised learning, unsupervised learning, feature-label understanding, and proper model evaluation.";
+        }
+        if (!hasExample) {
+            enriched = enriched + " " + buildExampleLine(course);
+        }
+        if (!hasNextStep) {
+            enriched = enriched + " " + buildNextStepLine(course);
+        }
+
+        return enriched.replaceAll("\\s+", " ").trim();
+    }
+
+    private int countSentences(String text) {
+        if (text == null || text.isBlank()) {
+            return 0;
+        }
+        return (int) SENTENCE_SPLIT_PATTERN.splitAsStream(text.trim())
+                .filter(part -> !part.isBlank())
+                .count();
+    }
+
+        private String buildGracefulFallbackAnswer(User user, Course course, String userMessage) {
+        String name = firstName(user);
+        String courseLabel = formatCourseLabel(course);
+
+        if (isAiMlConceptQuestion(course, userMessage)) {
+            return "Hi " + name + ", " + courseLabel + " focuses on how systems learn patterns from data to make useful predictions and decisions. "
+                + "The key concepts are supervised learning (learning from labeled examples), unsupervised learning (finding hidden structure), and model evaluation using metrics like accuracy or precision. "
+                + "You also need to understand features, labels, and why train/test split helps avoid overfitting. "
+                + buildExampleLine(course) + " "
+                + buildNextStepLine(course);
+        }
+
+        return "Hi " + name + ", " + courseLabel + " introduces the key ideas needed to understand this subject clearly and apply it in practice. "
+            + "Start by identifying the core concept, then connect it to where it is used in real scenarios, and finally check how outcomes are evaluated. "
+            + buildExampleLine(course) + " "
+            + buildNextStepLine(course);
+    }
+
+    private String buildExampleLine(Course course) {
+        String title = course.getTitle() == null ? "this course" : course.getTitle().toLowerCase(Locale.ROOT);
+        if (containsAny(title, "ai", "machine learning", "ml")) {
+            return "For example, a model can learn from labeled email data to classify new emails as spam or not spam.";
+        }
+        return "For example, take one concept from your current lesson and apply it to a small real-world scenario from the module.";
+    }
+
+    private String buildNextStepLine(Course course) {
+        return "Next step: pick one concept from today's lesson, write a short 3-point summary, and solve one related practice question.";
+    }
+
+    private String formatCourseLabel(Course course) {
+        String title = course.getTitle() == null ? "this course" : course.getTitle().trim();
+        String normalized = title.toLowerCase(Locale.ROOT);
+        if (containsAny(normalized, "ai", "ml", "machine learning", "artificial intelligence")) {
+            return "AI & Machine Learning Basics";
+        }
+        return title;
+    }
+
+    private boolean isAiMlConceptQuestion(Course course, String userMessage) {
+        String title = course.getTitle() == null ? "" : course.getTitle().toLowerCase(Locale.ROOT);
+        String question = userMessage == null ? "" : userMessage.toLowerCase(Locale.ROOT);
+        boolean aiMlCourse = containsAny(title, "ai", "ml", "machine learning", "artificial intelligence");
+        boolean conceptAsk = containsAny(question, "key concept", "concept", "basics", "introduction", "fundamental", "explain");
+        return aiMlCourse && conceptAsk;
+    }
+
+    private boolean containsAny(String value, String... candidates) {
+        if (value == null) {
+            return false;
+        }
+        String source = value.toLowerCase(Locale.ROOT);
+        for (String candidate : candidates) {
+            if (candidate != null && !candidate.isBlank() && source.contains(candidate.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String firstName(User user) {

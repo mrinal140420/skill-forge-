@@ -25,11 +25,21 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const requestUrl = String(error.config?.url || '');
+    const isLoginOrRegisterRequest =
+      requestUrl.includes('/api/auth/login') ||
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/api/auth/register') ||
+      requestUrl.includes('/auth/register');
+    const hasToken = !!(useAuthStore.getState().token || localStorage.getItem('authToken'));
+
+    if (error.response?.status === 401 && hasToken && !isLoginOrRegisterRequest) {
       // Unauthorized - clear auth
       useAuthStore.getState().logout();
       localStorage.removeItem('authToken');
-      window.location.href = '/login';
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

@@ -2,6 +2,7 @@ package com.skillforge.repository;
 
 import com.skillforge.entity.QuizAttempt;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -38,4 +39,7 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
             @Param("userId") Long userId,
             @Param("moduleId") String moduleId
     );
+
+        @Modifying
+        long deleteByUserId(Long userId);
 }

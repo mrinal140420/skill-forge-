@@ -18,6 +18,7 @@ export const SettingsPage: FC = () => {
   const [streakWeek, setStreakWeek] = useState(0);
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', email: user?.email || '' });
   const [saveMessage, setSaveMessage] = useState('');
+  const [saveMessageType, setSaveMessageType] = useState<'success' | 'error' | ''>('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [changingPassword, setChangingPassword] = useState(false);
@@ -47,6 +48,7 @@ export const SettingsPage: FC = () => {
   const saveProfile = async () => {
     setSavingProfile(true);
     setSaveMessage('');
+    setSaveMessageType('');
     try {
       const { data } = await apiClient.put('/api/auth/me', {
         name: profileForm.name,
@@ -54,8 +56,10 @@ export const SettingsPage: FC = () => {
       });
       setUser({ ...data, role: user?.role || data.role });
       setSaveMessage('Profile saved successfully.');
+      setSaveMessageType('success');
     } catch (error: any) {
       setSaveMessage(error?.response?.data?.error || 'Failed to save profile.');
+      setSaveMessageType('error');
     } finally {
       setSavingProfile(false);
     }
@@ -63,12 +67,15 @@ export const SettingsPage: FC = () => {
 
   const changePassword = async () => {
     setSaveMessage('');
+    setSaveMessageType('');
     if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
       setSaveMessage('All password fields are required.');
+      setSaveMessageType('error');
       return;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setSaveMessage('New password and confirmation do not match.');
+      setSaveMessageType('error');
       return;
     }
 
@@ -76,23 +83,28 @@ export const SettingsPage: FC = () => {
     try {
       const { data } = await apiClient.post('/api/auth/change-password', passwordForm);
       setSaveMessage(data?.message || 'Password changed successfully.');
+      setSaveMessageType('success');
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error: any) {
       setSaveMessage(error?.response?.data?.error || 'Failed to change password.');
+      setSaveMessageType('error');
     } finally {
       setChangingPassword(false);
     }
   };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage your account and preferences</p>
+    <div className="space-y-8 p-8 bg-gradient-to-br from-slate-50 via-indigo-50 to-slate-100 min-h-screen">
+      <div className="space-y-2">
+        <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-900 to-indigo-900 bg-clip-text text-transparent flex items-center gap-3">
+          <Settings className="h-10 w-10 text-indigo-700" />
+          Settings
+        </h1>
+        <p className="text-slate-600 text-lg">Manage your account and preferences</p>
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-3 md:w-fit">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="preferences">Preferences</TabsTrigger>
           <TabsTrigger value="streaks">Streaks</TabsTrigger>
@@ -106,7 +118,11 @@ export const SettingsPage: FC = () => {
               <CardDescription>Update your account information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {saveMessage && <div className="text-sm text-blue-600">{saveMessage}</div>}
+              {saveMessage && (
+                <div className={`rounded-lg border px-4 py-3 text-sm font-medium ${saveMessageType === 'success' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-rose-300 bg-rose-50 text-rose-700'}`}>
+                  {saveMessage}
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="name">Full Name</Label>

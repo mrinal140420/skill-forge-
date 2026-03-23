@@ -9,11 +9,8 @@ services:
       POSTGRES_DB: skillforge_prod
       POSTGRES_USER: skillforge_user
       POSTGRES_PASSWORD: ${DB_PASSWORD:-skillforge_default_123}
-    ports:
-      - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_prod_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U skillforge_user"]
       interval: 10s
@@ -22,12 +19,54 @@ services:
     networks:
       - skillforge-network
 
+  # One-shot DB backup utility (run with --profile tools)
+  db-backup:
+    image: postgres:16-alpine
+    profiles: ["tools"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${DB_PASSWORD:-skillforge_default_123}
+    volumes:
+      - ./backups:/backups
+    networks:
+      - skillforge-network
+    entrypoint: >
+      sh -c "mkdir -p /backups &&
+      pg_dump -h postgres -U skillforge_user -d skillforge_prod -Fc
+      -f /backups/skillforge_prod_$$(date +%Y%m%d_%H%M%S).dump"
+
+  # One-shot DB restore utility (run with --profile tools)
+  db-restore:
+    image: postgres:16-alpine
+    profiles: ["tools"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${DB_PASSWORD:-skillforge_default_123}
+      DB_DUMP_FILE: ${DB_DUMP_FILE:-}
+    volumes:
+      - ./backups:/backups
+    networks:
+      - skillforge-network
+    entrypoint: >
+      sh -c "test -n '$$DB_DUMP_FILE' || (echo 'Set DB_DUMP_FILE to a file under ./backups' && exit 1);
+      test -f /backups/$$DB_DUMP_FILE || (echo 'Dump file not found in /backups' && exit 1);
+      psql -h postgres -U skillforge_user -d postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='skillforge_prod' AND pid <> pg_backend_pid();\";
+      psql -h postgres -U skillforge_user -d postgres -c \"DROP DATABASE IF EXISTS skillforge_prod;\";
+      psql -h postgres -U skillforge_user -d postgres -c \"CREATE DATABASE skillforge_prod;\";
+      pg_restore -h postgres -U skillforge_user -d skillforge_prod --clean --if-exists /backups/$$DB_DUMP_FILE"
+
   # Spring Boot Backend
   backend:
     build:
       context: ./backend-spring
       dockerfile: Dockerfile
     container_name: skillforge-backend
+    env_file:
+      - ./backend-spring/.env
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SERVER_PORT: 8081
@@ -35,10 +74,6 @@ services:
       SPRING_DATASOURCE_USERNAME: skillforge_user
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-skillforge_default_123}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production-with-longer-key-1234567890abcdefghij}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
       ML_SERVICE_URL: http://ml-service:8000
       MAIL_HOST: ${MAIL_HOST:-localhost}
       MAIL_PORT: ${MAIL_PORT:-1025}
@@ -116,7 +151,7 @@ services:
       MH_SMTP_BIND_ADDR: 0.0.0.0:1025
 
 volumes:
-  postgres_data:
+  postgres_prod_data:
 
 networks:
   skillforge-network:

@@ -16,15 +16,35 @@ interface TrendPoint {
   score: number;
 }
 
+const RADAR_FALLBACK_AXES = ['Concepts', 'Practice', 'Accuracy', 'Consistency', 'Speed'];
+
+const toDisplayLabel = (name: string) => name
+  .replace(/_/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .replace(/\b\w/g, (char) => char.toUpperCase());
+
 const PerformanceRadar: FC<{ skills: SkillData[] }> = ({ skills }) => {
-  if (!skills.length) {
-    return <p className="text-sm text-muted-foreground py-6">No skill data available yet.</p>;
+  const normalizedSkills: SkillData[] = skills
+    .slice(0, 5)
+    .map((skill) => ({
+      name: toDisplayLabel(skill.name),
+      score: Math.max(0, Math.min(100, Number(skill.score || 0))),
+    }));
+
+  const fallbackScore = normalizedSkills.length
+    ? Math.round(normalizedSkills.reduce((acc, item) => acc + item.score, 0) / normalizedSkills.length)
+    : 0;
+
+  while (normalizedSkills.length < 5) {
+    const fallbackName = RADAR_FALLBACK_AXES[normalizedSkills.length];
+    normalizedSkills.push({ name: fallbackName, score: fallbackScore });
   }
 
   const svgSize = 360;
   const center = svgSize / 2;
   const maxRadius = 120;
-  const slices = (Math.PI * 2) / skills.length;
+  const slices = (Math.PI * 2) / normalizedSkills.length;
 
   const pointFor = (index: number, score: number) => {
     const angle = slices * index - Math.PI / 2;
@@ -35,27 +55,30 @@ const PerformanceRadar: FC<{ skills: SkillData[] }> = ({ skills }) => {
     };
   };
 
-  const polygonPoints = skills.map((skill, index) => {
+  const polygonPoints = normalizedSkills.map((skill, index) => {
     const point = pointFor(index, skill.score);
+    return `${point.x},${point.y}`;
+  }).join(' ');
+
+  const gridPolygonPoints = (level: number) => normalizedSkills.map((_, index) => {
+    const point = pointFor(index, level);
     return `${point.x},${point.y}`;
   }).join(' ');
 
   return (
     <div className="w-full flex flex-col items-center gap-6">
       <svg width={svgSize} height={svgSize} className="drop-shadow-sm">
-        {[25, 50, 75, 100].map((level) => (
-          <circle
+        {[20, 40, 60, 80, 100].map((level) => (
+          <polygon
             key={level}
-            cx={center}
-            cy={center}
-            r={(level / 100) * maxRadius}
+            points={gridPolygonPoints(level)}
             fill="none"
             stroke="rgba(148,163,184,0.3)"
             strokeDasharray="4 4"
           />
         ))}
 
-        {skills.map((_, index) => {
+        {normalizedSkills.map((_, index) => {
           const angle = slices * index - Math.PI / 2;
           return (
             <line
@@ -71,7 +94,7 @@ const PerformanceRadar: FC<{ skills: SkillData[] }> = ({ skills }) => {
 
         <polygon points={polygonPoints} fill="rgba(59,130,246,0.25)" stroke="rgb(59,130,246)" strokeWidth="2" />
 
-        {skills.map((skill, index) => {
+        {normalizedSkills.map((skill, index) => {
           const point = pointFor(index, skill.score);
           const labelAngle = slices * index - Math.PI / 2;
           const labelX = center + (maxRadius + 28) * Math.cos(labelAngle);
@@ -87,6 +110,10 @@ const PerformanceRadar: FC<{ skills: SkillData[] }> = ({ skills }) => {
           );
         })}
       </svg>
+
+      {!skills.length && (
+        <p className="text-sm text-muted-foreground -mt-2">No analytics yet, showing default pentagon view.</p>
+      )}
     </div>
   );
 };
@@ -125,10 +152,10 @@ export const PerformanceAnalytics: FC = () => {
   const polylinePoints = linePath.map((point: TrendPoint) => `${point.x},${point.y}`).join(' ');
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Performance Analytics</h1>
-        <p className="text-muted-foreground">ML-generated insights from your enrolled courses, progress, and attempts</p>
+    <div className="space-y-8 p-8 bg-gradient-to-br from-slate-50 via-indigo-50 to-slate-100 min-h-screen">
+      <div className="space-y-2">
+        <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-900 to-indigo-900 bg-clip-text text-transparent">Performance Analytics</h1>
+        <p className="text-slate-600 text-lg">ML-generated insights from your enrolled courses, progress, and attempts</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -142,7 +169,7 @@ export const PerformanceAnalytics: FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Zap className="h-5 w-5 text-blue-500" />Skills Radar</CardTitle>
         </CardHeader>
-        <CardContent className="flex justify-center">
+        <CardContent className="flex justify-center py-8">
           <PerformanceRadar skills={radarSkills} />
         </CardContent>
       </Card>

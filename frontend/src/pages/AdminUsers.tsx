@@ -1,4 +1,4 @@
-import { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,9 @@ export const AdminUsers: FC = () => {
 
   // Created instructor credentials (to display)
   const [createdInstructor, setCreatedInstructor] = useState<any>(null);
+  const [createdStudent, setCreatedStudent] = useState<any>(null);
+  const createdInstructorRef = useRef<HTMLDivElement | null>(null);
+  const createdStudentRef = useRef<HTMLDivElement | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -76,8 +79,12 @@ export const AdminUsers: FC = () => {
     try {
       const res = await adminAPI.createInstructor(instructorForm.name, instructorForm.email);
       setCreatedInstructor(res.data);
+      setCreatedStudent(null);
       setInstructorForm({ name: '', email: '' });
       setSuccess(`Instructor created! Share credentials securely.`);
+      requestAnimationFrame(() => {
+        createdInstructorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
       
       // Reload users list
       setTimeout(() => load(), 1000);
@@ -93,6 +100,7 @@ export const AdminUsers: FC = () => {
       try {
         await adminAPI.deleteUser(userId);
         setSuccess('User deleted successfully!');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         await load();
       } catch (err: any) {
         setError(err.response?.data?.error || 'Failed to delete user');
@@ -108,8 +116,13 @@ export const AdminUsers: FC = () => {
 
     try {
       const res = await adminAPI.createStudent(studentForm.name, studentForm.email);
+      setCreatedStudent(res.data);
+      setCreatedInstructor(null);
       setStudentForm({ name: '', email: '' });
-      setSuccess(`Student account created! Email: ${res.data.email}`);
+      setSuccess(`Student created! Share credentials securely.`);
+      requestAnimationFrame(() => {
+        createdStudentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
       
       // Reload users list
       setTimeout(() => load(), 1000);
@@ -164,13 +177,13 @@ export const AdminUsers: FC = () => {
       </div>
 
       {error && (
-        <div className="p-4 border rounded-md bg-red-50 text-red-700 border-red-200 text-sm">
+        <div className="sticky top-4 z-50 p-4 border rounded-xl bg-red-50 text-red-700 border-red-200 text-base font-medium shadow-lg">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="p-4 border rounded-md bg-green-50 text-green-700 border-green-200 text-sm">
+        <div className="sticky top-4 z-50 p-4 border rounded-xl bg-green-50 text-green-700 border-green-200 text-base font-medium shadow-lg">
           ✓ {success}
         </div>
       )}
@@ -230,7 +243,8 @@ export const AdminUsers: FC = () => {
 
       {/* Display Generated Credentials */}
       {createdInstructor && (
-        <Card className="border-green-200 bg-green-50">
+        <div ref={createdInstructorRef}>
+        <Card className="border-green-200 bg-green-50 scroll-mt-24">
           <CardHeader>
             <CardTitle className="text-green-900">✓ Instructor Created Successfully</CardTitle>
           </CardHeader>
@@ -249,9 +263,9 @@ export const AdminUsers: FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => copyToClipboard(createdInstructor.email, 'email')}
+                    onClick={() => copyToClipboard(createdInstructor.email, 'instructorEmail')}
                   >
-                    {copiedId === 'email' ? (
+                    {copiedId === 'instructorEmail' ? (
                       <Check className="h-4 w-4 text-green-600" />
                     ) : (
                       <Copy className="h-4 w-4" />
@@ -263,16 +277,16 @@ export const AdminUsers: FC = () => {
                 <Label className="text-xs text-muted-foreground">Temporary Password</Label>
                 <div className="flex items-center gap-2">
                   <span className="font-mono bg-slate-100 px-3 py-2 rounded text-sm flex-1 tracking-wider">
-                    {showCredentials.password
+                    {showCredentials.instructorPassword
                       ? createdInstructor.generatedPassword
                       : '••••••••••••'}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => togglePasswordVisibility('password')}
+                    onClick={() => togglePasswordVisibility('instructorPassword')}
                   >
-                    {showCredentials.password ? (
+                    {showCredentials.instructorPassword ? (
                       <EyeOff className="h-4 w-4" />
                     ) : (
                       <Eye className="h-4 w-4" />
@@ -281,9 +295,9 @@ export const AdminUsers: FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => copyToClipboard(createdInstructor.generatedPassword, 'password')}
+                    onClick={() => copyToClipboard(createdInstructor.generatedPassword, 'instructorPassword')}
                   >
-                    {copiedId === 'password' ? (
+                    {copiedId === 'instructorPassword' ? (
                       <Check className="h-4 w-4 text-green-600" />
                     ) : (
                       <Copy className="h-4 w-4" />
@@ -309,6 +323,7 @@ export const AdminUsers: FC = () => {
             </Button>
           </CardContent>
         </Card>
+        </div>
       )}
 
       {/* Create Student Card */}
@@ -359,10 +374,94 @@ export const AdminUsers: FC = () => {
             </div>
           </form>
           <div className="mt-3 text-xs text-muted-foreground">
-            💡 Default password will be created. Student can reset on first login.
+            💡 Password will be auto-generated and displayed below. Share it securely with the student.
           </div>
         </CardContent>
       </Card>
+
+      {/* Display Generated Student Credentials */}
+      {createdStudent && (
+        <div ref={createdStudentRef}>
+        <Card className="border-green-200 bg-green-50 scroll-mt-24">
+          <CardHeader>
+            <CardTitle className="text-green-900">✓ Student Created Successfully</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-white rounded-lg p-4 border border-green-200 space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Name</Label>
+                <div className="font-semibold">{createdStudent.name}</div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Email (Login ID)</Label>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono bg-slate-100 px-3 py-2 rounded text-sm flex-1">
+                    {createdStudent.email}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyToClipboard(createdStudent.email, 'studentEmail')}
+                  >
+                    {copiedId === 'studentEmail' ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Temporary Password</Label>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono bg-slate-100 px-3 py-2 rounded text-sm flex-1 tracking-wider">
+                    {showCredentials.studentPassword
+                      ? createdStudent.generatedPassword
+                      : '••••••••••••'}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => togglePasswordVisibility('studentPassword')}
+                  >
+                    {showCredentials.studentPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyToClipboard(createdStudent.generatedPassword, 'studentPassword')}
+                  >
+                    {copiedId === 'studentPassword' ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+              <strong>Next Steps:</strong>
+              <ul className="mt-2 ml-4 space-y-1 list-disc">
+                <li>Share these credentials securely with the student</li>
+                <li>Student logs in with email: {createdStudent.email}</li>
+                <li>Student should change password on first login</li>
+              </ul>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setCreatedStudent(null)}
+            >
+              Close
+            </Button>
+          </CardContent>
+        </Card>
+        </div>
+      )}
       <Card className="border-purple-200">
         <CardHeader className="bg-purple-50">
           <CardTitle className="text-purple-900">Assign Course to Instructor</CardTitle>

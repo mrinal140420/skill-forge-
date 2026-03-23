@@ -13,6 +13,7 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import apiClient from '@/api/apiClient';
 import { doubtsAPI } from '@/api/adminAPI';
+import { HelpCircle } from 'lucide-react';
 
 export const StudentDoubts: FC = () => {
   const [searchParams] = useSearchParams();
@@ -86,10 +87,13 @@ export const StudentDoubts: FC = () => {
   }, [prefilledCourseId, prefilledModuleId]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">My Doubts & Queries</h1>
-        <p className="text-muted-foreground">Submit course doubts and track replies from admins</p>
+    <div className="space-y-8 p-8 bg-gradient-to-br from-slate-50 via-indigo-50 to-slate-100 min-h-screen">
+      <div className="space-y-2">
+        <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-900 to-indigo-900 bg-clip-text text-transparent flex items-center gap-3">
+          <HelpCircle className="h-10 w-10 text-indigo-700" />
+          My Doubts & Queries
+        </h1>
+        <p className="text-slate-600 text-lg">Submit course doubts and track replies from admins</p>
       </div>
 
       {error && (
@@ -98,8 +102,8 @@ export const StudentDoubts: FC = () => {
         </div>
       )}
 
-      <Card>
-        <CardHeader>
+      <Card className="border-0 shadow-lg bg-white">
+        <CardHeader className="bg-gradient-to-r from-indigo-50 to-transparent border-b border-indigo-200">
           <CardTitle>Submit a New Doubt</CardTitle>
         </CardHeader>
         <CardContent>
@@ -171,8 +175,8 @@ export const StudentDoubts: FC = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="border-0 shadow-lg bg-white">
+        <CardHeader className="bg-gradient-to-r from-indigo-50 to-transparent border-b border-indigo-200">
           <CardTitle>My Submitted Doubts</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -182,10 +186,10 @@ export const StudentDoubts: FC = () => {
             <div className="text-sm text-muted-foreground">No doubts submitted yet.</div>
           ) : (
             doubts.map((d: any) => (
-              <div key={d.id} className="border rounded-md p-3 space-y-2">
+              <div key={d.id} className="border rounded-md p-3 space-y-2 bg-slate-50/70 border-slate-200">
                 <div className="flex items-center justify-between gap-2">
                   <div className="font-semibold">{d.title}</div>
-                  <div className="text-xs font-medium">{d.status}</div>
+                  <div className={`text-xs font-semibold px-2 py-1 rounded-full ${String(d.status).toLowerCase() === 'resolved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{d.status}</div>
                 </div>
                 <div className="text-sm text-muted-foreground">Course: {d.courseTitle || d.courseId}</div>
                 <div className="text-sm">{d.description}</div>

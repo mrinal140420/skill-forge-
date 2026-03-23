@@ -102,16 +102,28 @@ export const AdminCourseContent: FC = () => {
     }
   };
 
-  const loadTopics = async () => {
-    setLoading(true);
+  const loadTopics = async (showLoader = true) => {
+    if (showLoader) {
+      setLoading(true);
+    }
     try {
       const res = await apiClient.get(`/api/content/courses/${courseId}/topics`);
       setTopics(res.data.topics || []);
     } catch (err: any) {
       console.error('Failed to load topics:', err);
     } finally {
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
     }
+  };
+
+  const reloadTopicsPreserveScroll = async () => {
+    const currentY = window.scrollY;
+    await loadTopics(false);
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: currentY, behavior: 'auto' });
+    });
   };
 
   const loadGeneratedExam = async () => {
@@ -144,7 +156,7 @@ export const AdminCourseContent: FC = () => {
       await apiClient.post(`/api/content/courses/${courseId}/topics`, newTopicForm);
       setNewTopicForm({ title: '', description: '', orderIndex: topics.length + 1 });
       setShowTopicForm(false);
-      await loadTopics();
+      await reloadTopicsPreserveScroll();
     } catch (err: any) {
       alert('Failed to create topic: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -159,7 +171,7 @@ export const AdminCourseContent: FC = () => {
       await apiClient.post(`/api/content/topics/${topicId}/lessons`, newLessonForm);
       setNewLessonForm({ title: '', description: '', orderIndex: 1, durationMinutes: 30, topicId: '' });
       setShowLessonForm(null);
-      await loadTopics();
+      await reloadTopicsPreserveScroll();
     } catch (err: any) {
       alert('Failed to create lesson: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -174,7 +186,7 @@ export const AdminCourseContent: FC = () => {
       await apiClient.post(`/api/content/lessons/${lessonId}/resources`, newResourceForm);
       setNewResourceForm({ title: '', description: '', type: 'VIDEO', contentUrl: '', orderIndex: 1, durationMinutes: 0, lessonId: '' });
       setShowResourceForm(null);
-      await loadTopics();
+      await reloadTopicsPreserveScroll();
     } catch (err: any) {
       alert('Failed to add resource: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -186,7 +198,7 @@ export const AdminCourseContent: FC = () => {
     if (!window.confirm('Are you sure you want to delete this topic and all its lessons?')) return;
     try {
       await apiClient.delete(`/api/content/topics/${topicId}`);
-      await loadTopics();
+      await reloadTopicsPreserveScroll();
     } catch (err: any) {
       alert('Failed to delete topic: ' + (err.response?.data?.error || err.message));
     }
@@ -196,7 +208,7 @@ export const AdminCourseContent: FC = () => {
     if (!window.confirm('Are you sure you want to delete this lesson and all its resources?')) return;
     try {
       await apiClient.delete(`/api/content/lessons/${lessonId}`);
-      await loadTopics();
+      await reloadTopicsPreserveScroll();
     } catch (err: any) {
       alert('Failed to delete lesson: ' + (err.response?.data?.error || err.message));
     }
@@ -206,7 +218,7 @@ export const AdminCourseContent: FC = () => {
     if (!window.confirm('Are you sure you want to delete this resource?')) return;
     try {
       await apiClient.delete(`/api/content/resources/${resourceId}`);
-      await loadTopics();
+      await reloadTopicsPreserveScroll();
     } catch (err: any) {
       alert('Failed to delete resource: ' + (err.response?.data?.error || err.message));
     }
@@ -215,7 +227,7 @@ export const AdminCourseContent: FC = () => {
   const handleToggleResourceVisibility = async (resourceId: number, isVisible: boolean) => {
     try {
       await apiClient.put(`/api/content/resources/${resourceId}`, { isVisible: !isVisible });
-      await loadTopics();
+      await reloadTopicsPreserveScroll();
     } catch (err: any) {
       alert('Failed to update resource: ' + (err.response?.data?.error || err.message));
     }

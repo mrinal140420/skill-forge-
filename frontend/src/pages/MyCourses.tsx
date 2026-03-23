@@ -19,7 +19,7 @@ export const MyCourses: FC = () => {
   const [selectedTab, setSelectedTab] = useState('curriculum');
   const [aiQuestion, setAiQuestion] = useState('');
   const [chatMessages, setChatMessages] = useState<{ role: string; text: string }[]>([
-    { role: 'bot', text: `Hi ${user?.name?.split(' ')[0] || 'there'}, ask me about this course and I will keep the answer short and focused on the uploaded material.` },
+    { role: 'bot', text: `Hi ${user?.name?.split(' ')[0] || 'there'}, ask me anything from this course and I’ll explain it clearly with an example and a simple next step.` },
   ]);
 
   const [expandedTopics, setExpandedTopics] = useState<Set<number>>(new Set());
@@ -58,10 +58,10 @@ export const MyCourses: FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">{isInstructor ? 'My Courses (Instructor)' : 'My Courses'}</h1>
-        <p className="text-muted-foreground">
+    <div className="space-y-8 p-8 bg-gradient-to-br from-slate-50 via-indigo-50 to-slate-100 min-h-screen">
+      <div className="space-y-2">
+        <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-900 to-indigo-900 bg-clip-text text-transparent">{isInstructor ? 'My Courses (Instructor)' : 'My Courses'}</h1>
+        <p className="text-slate-600 text-lg">
           {isInstructor ? 'Manage and upload course content' : 'Continue your learning journey'}
         </p>
       </div>
@@ -312,7 +312,7 @@ export const MyCourses: FC = () => {
                     <Lightbulb className="h-5 w-5" />
                     SkillBot AI
                   </CardTitle>
-                  <CardDescription>Ask short questions about {course?.courseTitle} only</CardDescription>
+                  <CardDescription>Ask clear questions about {course?.courseTitle}; SkillBot replies with focused explanations and examples.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2 h-64 sm:h-72 overflow-y-auto border border-border rounded-lg p-3 bg-muted/30">
@@ -366,15 +366,20 @@ export const MyCourses: FC = () => {
                 {typedEnrollments.map((enrollment) => (
                   <div
                     key={enrollment.id}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
                   >
                     <div className="flex-1">
                       <h4 className="font-semibold text-sm">{enrollment.courseTitle}</h4>
                       <p className="text-xs text-muted-foreground">{enrollment.progress}% complete</p>
                     </div>
-                    <Badge variant={enrollment.progress >= 100 ? 'secondary' : 'default'}>
-                      {enrollment.progress >= 100 ? 'Completed' : 'In Progress'}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={enrollment.progress >= 100 ? 'secondary' : 'default'}>
+                        {enrollment.progress >= 100 ? 'Completed' : 'In Progress'}
+                      </Badge>
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/course-content/${enrollment.courseId}`)}>
+                        Open Course
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </CardContent>

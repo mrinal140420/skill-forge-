@@ -24,6 +24,7 @@
 - [API Reference](#api-reference)
 - [Database Schema](#database-schema)
 - [Docker Deployment](#docker-deployment)
+  - [Quick Start: Production (Docker Compose)](#quick-start-production-docker-compose)
 - [Production Deployment](#production-deployment)
 - [Test Credentials](#test-credentials)
 - [Troubleshooting](#troubleshooting)
@@ -167,8 +168,22 @@ skill-forge-master/
 
 ## Getting Started
 
+### Development Paths
+
+SkillForge supports two development approaches — choose based on your needs:
+
+| Approach | Database | Setup Time | Best For | Consistency |
+|----------|----------|-----------|----------|-------------|
+| **Local Development** | H2 (file-based) | ~5 min | Quick iteration, debugging, learning | Dev-only, may differ from production |
+| **Docker Compose (PostgreSQL)** | PostgreSQL | ~2 min | Team consistency, production-like testing, pre-deployment validation | Matches production environment exactly |
+
+**Recommendation:** Use **Local Development** for rapid iteration during feature work. Use **Docker Compose** before commits/PRs to validate production behavior.
+
+---
+
 ### Prerequisites
 
+#### Local Development
 | Tool | Version | Check Command |
 |------|---------|---------------|
 | **Java** | 21+ | `java -version` |
@@ -178,6 +193,12 @@ skill-forge-master/
 | **Python** | 3.9+ | `python --version` |
 | **Git** | Any | `git --version` |
 
+#### Docker Compose
+| Tool | Version |
+|------|----------|
+| **Docker** | 20.10+ |
+| **Docker Compose** | 2.0+ |
+
 ### Clone & Setup
 
 ```bash
@@ -185,6 +206,16 @@ skill-forge-master/
 git clone https://github.com/YOUR_USERNAME/skill-forge-master.git
 cd skill-forge-master
 ```
+
+---
+
+### Choose Your Path
+
+**🚀 Want to start quickly?**  
+→ Jump to [**Local Development (1. Backend, 2. Frontend, 3. ML Service)**](#1-backend-spring-boot)
+
+**🐳 Want production-like consistency from day one?**  
+→ Jump to [**Quick Start: Production (Docker Compose)**](#quick-start-production-docker-compose)
 
 ---
 
@@ -514,6 +545,102 @@ This default stack uses the same development profile as local runs, including fi
 docker compose -f docker-compose-spring.yml up --build -d
 ```
 
+### Quick Start: Production (Docker Compose)
+
+**For a fresh deployment on new localhost:**
+
+#### Step 1: Clone and configure OAuth credentials
+
+```bash
+git clone https://github.com/YOUR_USERNAME/skill-forge-master.git
+cd skill-forge-master
+```
+
+Create `backend-spring/.env` with your OAuth credentials (see [OAuth2 Setup](#oauth2-setup-google--github)):
+
+```dotenv
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+```
+
+#### Step 2: Start the stack
+
+**With default password** (`skillforge_default_123`):
+```bash
+docker compose -f docker-compose-prod.yml up --build -d
+```
+
+**With custom DB password** (Windows PowerShell):
+```powershell
+$env:DB_PASSWORD="your-custom-password"
+docker compose -f docker-compose-prod.yml up --build -d
+```
+
+**With custom DB password** (Linux/macOS):
+```bash
+DB_PASSWORD=your-custom-password docker compose -f docker-compose-prod.yml up --build -d
+```
+
+#### Step 3: Verify services are running
+
+```bash
+docker compose -f docker-compose-prod.yml ps
+```
+
+Expected output shows all services `Up`:
+- `skillforge-backend` (port 8081)
+- `skillforge-frontend` (port 5173)
+- `skillforge-ml` (port 8000)
+- `skillforge-postgres` (internal)
+- `skillforge-mailhog` (port 8025)
+
+#### Step 4: Access the application
+
+- **Frontend**: http://localhost:5173
+- **Backend API Docs**: http://localhost:8081/swagger-ui.html
+- **Mail UI**: http://localhost:8025
+
+#### Step 5 (Optional): Migrate data from another machine
+
+If you have data from another SkillForge instance, restore it:
+
+```bash
+# Copy backup dump file to ./backups/ folder, then restore:
+
+# Windows PowerShell
+$env:DB_DUMP_FILE="skillforge_prod_20260323_065700.dump"
+docker compose -f docker-compose-prod.yml --profile tools run --rm db-restore
+
+# Linux/macOS
+DB_DUMP_FILE=skillforge_prod_20260323_065700.dump docker compose -f docker-compose-prod.yml --profile tools run --rm db-restore
+```
+
+#### Common Commands
+
+```bash
+# Start production stack
+docker compose -f docker-compose-prod.yml up --build -d
+
+# Stop all services
+docker compose -f docker-compose-prod.yml down
+
+# Check service status
+docker compose -f docker-compose-prod.yml ps
+
+# View logs
+docker compose -f docker-compose-prod.yml logs -f backend
+docker compose -f docker-compose-prod.yml logs -f frontend
+docker compose -f docker-compose-prod.yml logs -f ml-service
+
+# Create database backup
+docker compose -f docker-compose-prod.yml --profile tools run --rm db-backup
+
+# Restore database from backup
+DB_DUMP_FILE=your_dump_file.dump docker compose -f docker-compose-prod.yml --profile tools run --rm db-restore
+```
+
 ---
 
 ## Production Deployment
@@ -562,6 +689,29 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 1. **Frontend on Vercel**: Import repo, set root to `frontend`, build command `npm run build`, output `dist`
 2. **Backend on Render**: Web Service, root `backend-spring`, build `./mvnw clean package -DskipTests`, start `./mvnw spring-boot:run -Dspring-boot.run.profiles=prod`
 3. **ML Service on Render**: Web Service, root `ml-service`, start `uvicorn main:app --host 0.0.0.0 --port 8000`
+
+### Automated PostgreSQL Backup/Restore (Docker Compose)
+
+The production compose file includes one-shot database utility services under a `tools` profile.
+
+```bash
+# Create a timestamped backup in ./backups
+docker compose -f docker-compose-prod.yml --profile tools run --rm db-backup
+```
+
+```bash
+# Restore a specific dump file from ./backups
+# Linux/macOS
+DB_DUMP_FILE=your_dump_file.dump docker compose -f docker-compose-prod.yml --profile tools run --rm db-restore
+
+# Windows PowerShell
+$env:DB_DUMP_FILE="your_dump_file.dump"
+docker compose -f docker-compose-prod.yml --profile tools run --rm db-restore
+```
+
+Notes:
+- Keep dump files in the project `backups/` folder.
+- Restore recreates `skillforge_prod`, so it replaces current DB content.
 
 ### Production Checklist
 

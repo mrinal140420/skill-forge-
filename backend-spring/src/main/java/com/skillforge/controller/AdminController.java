@@ -1,6 +1,7 @@
 package com.skillforge.controller;
 
 import com.skillforge.dto.AdminDashboardSummaryDTO;
+import com.skillforge.dto.CreateInstructorResponseDTO;
 import com.skillforge.dto.CourseDTO;
 import com.skillforge.dto.DoubtDTO;
 import com.skillforge.dto.UserDTO;
@@ -207,13 +208,8 @@ public class AdminController {
                 return ResponseEntity.badRequest().body(new ErrorResponse("Email cannot be empty"));
             }
 
-            User created = adminService.createStudent(request.getName(), request.getEmail());
-            Map<String, Object> response = new HashMap<>();
-            response.put("id", created.getId());
-            response.put("name", created.getName());
-            response.put("email", created.getEmail());
-            response.put("message", "Student created successfully");
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            CreateInstructorResponseDTO created = adminService.createStudent(request.getName(), request.getEmail());
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
         } catch (IllegalArgumentException e) {
             log.warn("Student creation validation failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));

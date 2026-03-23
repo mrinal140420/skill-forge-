@@ -4,6 +4,7 @@ import com.skillforge.models.ChatMessage;
 import com.skillforge.entity.Course;
 import com.skillforge.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -25,4 +26,8 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
     
     @Query("SELECT COUNT(cm) FROM ChatMessage cm WHERE cm.user.id = :userId AND cm.isHelpful = true")
     long countHelpfulMessages(@Param("userId") Long userId);
+
+    @Modifying
+    @Query("DELETE FROM ChatMessage cm WHERE cm.user.id = :userId")
+    int deleteByUserId(@Param("userId") Long userId);
 }

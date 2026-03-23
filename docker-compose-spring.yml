@@ -27,6 +27,8 @@ services:
       context: ./backend-spring
       dockerfile: Dockerfile
     container_name: skillforge-backend
+    env_file:
+      - ./backend-spring/.env
     ports:
       - "8081:8081"
     environment:

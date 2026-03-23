@@ -1,9 +1,6 @@
 package com.skillforge.service;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.reflect.TypeToken;
-import com.skillforge.dto.CourseDTO;
 import com.skillforge.entity.Course;
 import com.skillforge.entity.Enrollment;
 import com.skillforge.entity.Progress;
@@ -20,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.lang.reflect.Type;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -32,8 +28,6 @@ import java.util.stream.Collectors;
  * - Sends POST request to FastAPI /recommend endpoint
  * - FastAPI processes and returns: recommendedCourses, recommendedTopics
  * - Returns to frontend unchanged
- * 
- * Fallback: If ML service unavailable, returns popular courses not yet enrolled
  * 
  * Environment Variable:
  * - ML_SERVICE_URL: URL of FastAPI service (default: http://localhost:8000)
@@ -76,8 +70,8 @@ public class RecommendationService {
      * Process:
      * 1. Collect user data: enrolled courses, completed modules, quiz scores
      * 2. Call FastAPI ML service POST /recommend
-     * 3. Return ML service response
-     * 4. On ML failure: Return fallback recommendations (popular courses)
+    * 3. Return ML service response
+    * 4. On ML failure: Return empty recommendation list (no fallback logic)
      * 
      * @param userId User ID (from JWT)
      * @return RecommendationResponse with recommended courses and topics
@@ -112,6 +106,17 @@ public class RecommendationService {
                     ))
                     .collect(Collectors.toList());
 
+                // Provide the full course catalog to ML service for non-hardcoded recommendations
+                List<AvailableCourseData> availableCourses = courseRepository.findAll().stream()
+                    .map(course -> new AvailableCourseData(
+                        course.getId().toString(),
+                        course.getTitle(),
+                        course.getCategory() != null ? course.getCategory().name() : "General",
+                        course.getLevel() != null ? course.getLevel().name() : "Beginner",
+                        course.getRating() != null ? course.getRating() : 0.0
+                    ))
+                    .collect(Collectors.toList());
+
             // Build ML request
             MLRecommendRequest mlRequest = MLRecommendRequest.builder()
                     .userId(userId.toString())
@@ -119,24 +124,28 @@ public class RecommendationService {
                     .enrolledTopics(enrolledTopics)
                     .completedModules(completedModules)
                     .quizAttempts(quizData)
+                    .availableCourses(availableCourses)
                     .build();
 
             log.info("Calling ML service for user: {} with enrolled courses: {}",
                     userId, enrolledCourseIds.size());
 
             // Call ML service
-            return callMLService(mlRequest, enrolledCourseIds);
+            return callMLService(mlRequest);
 
         } catch (Exception e) {
-            log.warn("Error in recommendation service, falling back to default", e);
-            return getFallbackRecommendations(getUserEnrolledCourseIds(userId));
+            log.error("Error in recommendation service, returning empty ML recommendations", e);
+            return RecommendationResponse.builder()
+                    .recommendedCourses(List.of())
+                    .recommendedTopics(List.of())
+                    .build();
         }
     }
 
     /**
      * Call FastAPI ML service for recommendations
      */
-    private RecommendationResponse callMLService(MLRecommendRequest request, List<String> enrolledCourseIds) {
+    private RecommendationResponse callMLService(MLRecommendRequest request) {
         try {
             if (restTemplate == null) {
                 restTemplate = new RestTemplate();
@@ -181,79 +190,12 @@ public class RecommendationService {
                         .recommendedTopics(recommendedTopics != null ? recommendedTopics : List.of())
                         .build();
             }
+            throw new IllegalStateException("ML service responded without recommendation payload");
         } catch (RestClientException e) {
-            log.warn("ML service call failed: {}", e.getMessage());
+            throw new IllegalStateException("ML service call failed", e);
         } catch (Exception e) {
-            log.warn("Error processing ML service response: {}", e.getMessage());
+            throw new IllegalStateException("Error processing ML service response", e);
         }
-
-        // Fallback to default recommendations
-        return getFallbackRecommendations(enrolledCourseIds);
-    }
-
-    /**
-     * Fallback recommendations: Return popular courses user hasn't enrolled in
-     * Used when ML service is unavailable
-     */
-    private RecommendationResponse getFallbackRecommendations(List<String> enrolledCourseIds) {
-        try {
-            // Convert to Long IDs
-            List<Long> enrolledIds = enrolledCourseIds.stream()
-                    .map(Long::parseLong)
-                    .collect(Collectors.toList());
-
-            // Find popular courses not enrolled
-            List<Course> recommendations = courseRepository.findAll().stream()
-                    .filter(c -> !enrolledIds.contains(c.getId()))
-                    .sorted(Comparator.comparingDouble((Course c) -> c.getRating() != null ? c.getRating() : 0)
-                            .reversed())
-                    .limit(8)
-                    .collect(Collectors.toList());
-
-            // Convert to response format
-            List<Map<String, Object>> recommendedCourses = recommendations.stream()
-                    .map(course -> {
-                        Map<String, Object> courseMap = new HashMap<>();
-                        courseMap.put("courseId", course.getId());
-                        courseMap.put("title", course.getTitle());
-                        courseMap.put("category", course.getCategory() != null ? course.getCategory().name() : "General");
-                        courseMap.put("score", course.getRating() != null ? course.getRating() : 0);
-                        courseMap.put("reason", "Popular course recommended based on your profile.");
-                        return courseMap;
-                    })
-                    .collect(Collectors.toList());
-
-            List<String> recommendedTopics = recommendedCourses.stream()
-                    .map(c -> String.valueOf(c.getOrDefault("category", "General")))
-                    .distinct()
-                    .limit(5)
-                    .collect(Collectors.toList());
-            if (recommendedTopics.isEmpty()) {
-                recommendedTopics = List.of("General");
-            }
-
-            log.info("Using fallback recommendations: {} courses", recommendedCourses.size());
-
-            return RecommendationResponse.builder()
-                    .recommendedCourses(recommendedCourses)
-                    .recommendedTopics(recommendedTopics)
-                    .build();
-        } catch (Exception e) {
-            log.error("Error building fallback recommendations", e);
-            return RecommendationResponse.builder()
-                    .recommendedCourses(List.of())
-                    .recommendedTopics(List.of("General"))
-                    .build();
-        }
-    }
-
-    /**
-     * Get enrolled course IDs for a user
-     */
-    private List<String> getUserEnrolledCourseIds(Long userId) {
-        return enrollmentRepository.findAllByUserIdOrderByEnrolledAtDesc(userId).stream()
-                .map(e -> e.getCourse().getId().toString())
-                .collect(Collectors.toList());
     }
 
     // Helper DTOs
@@ -264,15 +206,17 @@ public class RecommendationService {
         List<String> enrolledTopics;
         List<String> completedModules;
         List<QuizAttemptData> quizAttempts;
+        List<AvailableCourseData> availableCourses;
         
         public MLRecommendRequest() {}
         
-        public MLRecommendRequest(String userId, List<String> enrolledCourses, List<String> enrolledTopics, List<String> completedModules, List<QuizAttemptData> quizAttempts) {
+        public MLRecommendRequest(String userId, List<String> enrolledCourses, List<String> enrolledTopics, List<String> completedModules, List<QuizAttemptData> quizAttempts, List<AvailableCourseData> availableCourses) {
             this.userId = userId;
             this.enrolledCourses = enrolledCourses;
             this.enrolledTopics = enrolledTopics;
             this.completedModules = completedModules;
             this.quizAttempts = quizAttempts;
+            this.availableCourses = availableCourses;
         }
         
         public static MLRecommendRequestBuilder builder() {
@@ -293,6 +237,9 @@ public class RecommendationService {
         
         public List<QuizAttemptData> getQuizAttempts() { return quizAttempts; }
         public void setQuizAttempts(List<QuizAttemptData> quizAttempts) { this.quizAttempts = quizAttempts; }
+
+        public List<AvailableCourseData> getAvailableCourses() { return availableCourses; }
+        public void setAvailableCourses(List<AvailableCourseData> availableCourses) { this.availableCourses = availableCourses; }
         
         public static class MLRecommendRequestBuilder {
             private String userId;
@@ -300,6 +247,7 @@ public class RecommendationService {
             private List<String> enrolledTopics;
             private List<String> completedModules;
             private List<QuizAttemptData> quizAttempts;
+            private List<AvailableCourseData> availableCourses;
             
             public MLRecommendRequestBuilder userId(String userId) {
                 this.userId = userId;
@@ -325,11 +273,49 @@ public class RecommendationService {
                 this.quizAttempts = quizAttempts;
                 return this;
             }
+
+            public MLRecommendRequestBuilder availableCourses(List<AvailableCourseData> availableCourses) {
+                this.availableCourses = availableCourses;
+                return this;
+            }
             
             public MLRecommendRequest build() {
-                return new MLRecommendRequest(this.userId, this.enrolledCourses, this.enrolledTopics, this.completedModules, this.quizAttempts);
+                return new MLRecommendRequest(this.userId, this.enrolledCourses, this.enrolledTopics, this.completedModules, this.quizAttempts, this.availableCourses);
             }
         }
+    }
+
+    public static class AvailableCourseData {
+        String courseId;
+        String title;
+        String category;
+        String level;
+        Double rating;
+
+        public AvailableCourseData() {}
+
+        public AvailableCourseData(String courseId, String title, String category, String level, Double rating) {
+            this.courseId = courseId;
+            this.title = title;
+            this.category = category;
+            this.level = level;
+            this.rating = rating;
+        }
+
+        public String getCourseId() { return courseId; }
+        public void setCourseId(String courseId) { this.courseId = courseId; }
+
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+
+        public String getCategory() { return category; }
+        public void setCategory(String category) { this.category = category; }
+
+        public String getLevel() { return level; }
+        public void setLevel(String level) { this.level = level; }
+
+        public Double getRating() { return rating; }
+        public void setRating(Double rating) { this.rating = rating; }
     }
 
     public static class QuizAttemptData {

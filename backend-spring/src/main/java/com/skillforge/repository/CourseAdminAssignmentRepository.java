@@ -4,6 +4,7 @@ import com.skillforge.entity.CourseAdminAssignment;
 import com.skillforge.entity.Course;
 import com.skillforge.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -41,4 +42,7 @@ public interface CourseAdminAssignmentRepository extends JpaRepository<CourseAdm
      * Find all assignments for an admin by admin ID
      */
     List<CourseAdminAssignment> findByAdminId(Long adminId);
+
+    @Modifying
+    long deleteByAdminId(Long adminId);
 }

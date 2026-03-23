@@ -7,11 +7,13 @@ import com.skillforge.dto.CreateInstructorResponseDTO;
 import com.skillforge.dto.CourseDTO;
 import com.skillforge.entity.*;
 import com.skillforge.repository.*;
+import com.skillforge.repositories.ChatMessageRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -56,6 +58,9 @@ public class AdminService {
     
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+        @Autowired
+        private ChatMessageRepository chatMessageRepository;
     
     /**
      * Assign a course to a course admin user
@@ -317,19 +322,22 @@ public class AdminService {
     /**
      * Delete user by ID (except Super Admin)
      */
-    public void deleteUser(Long userId) {
+        @Transactional
+        public void deleteUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
         if (user.getRole() == User.UserRole.SUPER_ADMIN) {
             throw new IllegalArgumentException("Cannot delete Super Admin user");
         }
-        
-        userRepository.deleteById(userId);
+
+                cleanupUserDependencies(userId, user.getRole());
+                userRepository.delete(user);
         log.info("Deleted user: {} ({})", user.getName(), user.getEmail());
     }
 
-        public void deleteInstructor(Long instructorId) {
+                @Transactional
+                public void deleteInstructor(Long instructorId) {
                 User user = userRepository.findById(instructorId)
                                 .orElseThrow(() -> new IllegalArgumentException("Instructor not found"));
 
@@ -337,14 +345,29 @@ public class AdminService {
                         throw new IllegalArgumentException("Provided user is not an instructor");
                 }
 
-                userRepository.deleteById(instructorId);
+                                cleanupUserDependencies(instructorId, user.getRole());
+                                userRepository.delete(user);
                 log.info("Deleted instructor: {} ({})", user.getName(), user.getEmail());
+        }
+
+        private void cleanupUserDependencies(Long userId, User.UserRole role) {
+                enrollmentRepository.deleteByUserId(userId);
+                progressRepository.deleteByUserId(userId);
+                quizAttemptRepository.deleteByUserId(userId);
+                chatMessageRepository.deleteByUserId(userId);
+
+                if (role == User.UserRole.STUDENT) {
+                        doubtRepository.deleteByStudentId(userId);
+                }
+
+                doubtRepository.clearRepliedByAdmin(userId);
+                courseAdminAssignmentRepository.deleteByAdminId(userId);
         }
     
     /**
      * Create a new student user
      */
-    public User createStudent(String name, String email) {
+        public CreateInstructorResponseDTO createStudent(String name, String email) {
         // Check if email already exists
         if (userRepository.findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("Email already exists: " + email);
@@ -364,8 +387,14 @@ public class AdminService {
         
         User savedStudent = userRepository.save(student);
         log.info("Created new student: {} ({})", name, email);
-        
-        return savedStudent;
+
+        return new CreateInstructorResponseDTO(
+                savedStudent.getId(),
+                savedStudent.getName(),
+                savedStudent.getEmail(),
+                generatedPassword,
+                "Student created successfully. Share these credentials securely with the student."
+        );
     }
     
     /**

@@ -4,6 +4,7 @@ import com.skillforge.entity.Doubt;
 import com.skillforge.entity.User;
 import com.skillforge.entity.Course;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -54,4 +55,11 @@ public interface DoubtRepository extends JpaRepository<Doubt, Long> {
      * Find all doubts by student ID
      */
     List<Doubt> findByStudentId(Long studentId);
+
+    @Modifying
+    long deleteByStudentId(Long studentId);
+
+    @Modifying
+    @Query("UPDATE Doubt d SET d.repliedByAdmin = null WHERE d.repliedByAdmin.id = :adminId")
+    int clearRepliedByAdmin(@Param("adminId") Long adminId);
 }

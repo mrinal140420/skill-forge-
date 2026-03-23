@@ -64,7 +64,7 @@ server:
     enabled: true
     mime-types: application/json,application/xml,text/html,text/xml,text/plain
   error:
-    include-message: when_param
+    include-message: on_param
     include-stacktrace: never
 
 # Logging - Production level

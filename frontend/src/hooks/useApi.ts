@@ -393,17 +393,19 @@ export const useRecommendations = () => {
     queryKey: ['recommendations'],
     queryFn: async () => {
       const { data } = await apiClient.get('/api/recommendations/me');
-      // Backend returns { recommendedCourses: [...], recommendedTopics: [...] }
-      // Frontend expects { courses: [{ id, title, reason, category }] }
-      const rawCourses = data?.recommendedCourses || [];
-      const courses = rawCourses.map((r: any) => ({
-        id: String(r.courseId || r.id || ''),
-        title: r.title || String(r.courseId || r.id || 'Recommended Course').replace(/[_-]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-        reason: r.reason || 'Recommended for you',
-        category: r.category || 'General',
-        score: r.score || 0,
-      }));
-      return { courses, topics: data?.recommendedTopics || [] };
+      // Strict ML response mapping only (no synthetic/hardcoded fallback labels)
+      const rawCourses = Array.isArray(data?.recommendedCourses) ? data.recommendedCourses : [];
+      const courses = rawCourses
+        .filter((r: any) => typeof r?.courseId !== 'undefined' && typeof r?.title === 'string' && r.title.trim().length > 0)
+        .map((r: any) => ({
+          id: String(r.courseId),
+          title: r.title.trim(),
+          reason: typeof r.reason === 'string' ? r.reason : '',
+          category: typeof r.category === 'string' && r.category.trim().length > 0 ? r.category : 'General',
+          score: Number(r.score || 0),
+        }));
+      const topics = Array.isArray(data?.recommendedTopics) ? data.recommendedTopics : [];
+      return { courses, topics };
     },
     retry: 1,
   });

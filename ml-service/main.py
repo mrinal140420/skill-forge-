@@ -26,15 +26,25 @@ class QuizAttempt(BaseModel):
     score: float
     passed: bool
 
+class AvailableCourse(BaseModel):
+    courseId: str
+    title: str
+    category: Optional[str] = "General"
+    level: Optional[str] = "Beginner"
+    rating: Optional[float] = 0.0
+
 class RecommendationRequest(BaseModel):
     userId: str
     enrolledCourses: List[str]
     enrolledTopics: Optional[List[str]] = None
     completedModules: List[str]
     quizAttempts: List[QuizAttempt]
+    availableCourses: Optional[List[AvailableCourse]] = None
 
 class RecommendedCourse(BaseModel):
     courseId: str
+    title: Optional[str] = None
+    category: Optional[str] = None
     score: float
     reason: str
 
@@ -148,52 +158,49 @@ async def recommend(request: RecommendationRequest):
     # Calculate mastery
     mastery = calculate_mastery_tags(request.quizAttempts)
     enrolled_topics = [topic.upper() for topic in (request.enrolledTopics or [])]
-    
-    # Course topics mapping
-    course_topics = {
-        'dbms': 'DBMS',
-        'dsa': 'DSA',
-        'os': 'OS',
-        'cn': 'CN',
-        'oop': 'OOP',
-        'system': 'System Design',
-        'ml': 'AI/ML Basics',
-        'cyber': 'Cyber Security'
-    }
+    available_courses = request.availableCourses or []
+    enrolled_course_ids = {str(course_id) for course_id in (request.enrolledCourses or [])}
+
+    if len(available_courses) == 0:
+        return RecommendationResponse(
+            recommendedCourses=[],
+            recommendedTopics=[]
+        )
     
     recommended_courses = []
     topics_to_recommend = []
     
-    # Generate recommendations for each topic
-    for course_key, topic in course_topics.items():
+    # Generate recommendations from actual catalog sent by backend
+    for course in available_courses:
+        topic = (course.category or "General").upper()
+
         score = calculate_recommendation_score(
             mastery,
-            f"course_{course_key}",
-            request.enrolledCourses,
+            str(course.courseId),
+            list(enrolled_course_ids),
             topic,
             enrolled_topics
         )
-        
+
         if score > 0.3:  # Only recommend high-scoring courses
-            reason_map = {
-                'DBMS': "Recommended because you're progressing well in databases.",
-                'DSA': "Essential skill for technical interviews and coding.",
-                'OS': "Foundation for system understanding.",
-                'CN': "Critical for networking and distributed systems.",
-                'OOP': "Core programming paradigm to master.",
-                'System Design': "Next step after mastering fundamentals.",
-                'AI/ML Basics': "Trending field with career opportunities.",
-                'Cyber Security': "Increasingly important skill in tech."
-            }
-            
+            mastery_tag = mastery.get(topic, 0.5)
+            if mastery_tag < 0.45:
+                reason = f"Recommended to improve your {topic.title()} fundamentals."
+            elif topic in enrolled_topics:
+                reason = f"Recommended to deepen your current focus in {topic.title()}."
+            else:
+                reason = f"Recommended to diversify your learning path with {topic.title()}."
+
             recommended_courses.append(
                 RecommendedCourse(
-                    courseId=f"course_{course_key}",
+                    courseId=str(course.courseId),
+                    title=course.title,
+                    category=course.category,
                     score=score,
-                    reason=reason_map.get(topic, f"Recommended next step in {topic}")
+                    reason=reason
                 )
             )
-            topics_to_recommend.append(topic)
+            topics_to_recommend.append(topic.title())
     
     # Sort by score and limit to top 8
     recommended_courses.sort(key=lambda x: x.score, reverse=True)
