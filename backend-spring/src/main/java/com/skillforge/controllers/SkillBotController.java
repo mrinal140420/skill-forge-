@@ -52,6 +52,7 @@ public class SkillBotController {
         Long userId = getCurrentUserId();
         String userMessage = (String) request.get("message");
         Long courseId = request.get("courseId") != null ? Long.valueOf(request.get("courseId").toString()) : null;
+        String systemPrompt = request.get("systemPrompt") != null ? request.get("systemPrompt").toString() : null;
         
         if (userMessage == null || userMessage.trim().isEmpty()) {
             return ResponseEntity.badRequest().build();
@@ -62,7 +63,7 @@ public class SkillBotController {
         
         log.info("User {} sent message to SkillBot: {}", userId, userMessage);
         
-        ChatMessageDTO response = skillBotService.chat(userId, userMessage, courseId);
+        ChatMessageDTO response = skillBotService.chat(userId, userMessage, courseId, systemPrompt);
         return ResponseEntity.ok(response);
     }
     

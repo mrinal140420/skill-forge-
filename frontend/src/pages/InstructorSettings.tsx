@@ -29,11 +29,29 @@ type InstructorSettingsState = {
   notifyAssignmentEmail: boolean;
   notifyReviewInApp: boolean;
   notifyReviewEmail: boolean;
-  theme: 'light' | 'dark';
-  defaultDashboardPage: 'dashboard' | 'courses' | 'doubts';
 };
 
 const checkboxClassName = 'h-4 w-4 rounded border-slate-300';
+
+const sanitizeInstructorSettings = (value: InstructorSettingsState): InstructorSettingsState => ({
+  name: value.name,
+  profilePhoto: value.profilePhoto,
+  bio: value.bio,
+  linkedin: value.linkedin,
+  github: value.github,
+  defaultCourseVisibility: value.defaultCourseVisibility,
+  defaultQuizPassingPercentage: value.defaultQuizPassingPercentage,
+  defaultQuizTimeLimit: value.defaultQuizTimeLimit,
+  allowQuizRetakes: value.allowQuizRetakes,
+  notifyEnrollmentInApp: value.notifyEnrollmentInApp,
+  notifyEnrollmentEmail: value.notifyEnrollmentEmail,
+  notifyDoubtInApp: value.notifyDoubtInApp,
+  notifyDoubtEmail: value.notifyDoubtEmail,
+  notifyAssignmentInApp: value.notifyAssignmentInApp,
+  notifyAssignmentEmail: value.notifyAssignmentEmail,
+  notifyReviewInApp: value.notifyReviewInApp,
+  notifyReviewEmail: value.notifyReviewEmail,
+});
 
 export const InstructorSettingsPage: FC = () => {
   const user = useAuthStore((state) => state.user);
@@ -57,11 +75,9 @@ export const InstructorSettingsPage: FC = () => {
     notifyAssignmentEmail: false,
     notifyReviewInApp: true,
     notifyReviewEmail: true,
-    theme: 'light',
-    defaultDashboardPage: 'dashboard',
   }), [user]);
 
-  const [settings, setSettings] = useState<InstructorSettingsState>(() => readScopedSettings(storageKey, defaultSettings));
+  const [settings, setSettings] = useState<InstructorSettingsState>(() => sanitizeInstructorSettings(readScopedSettings(storageKey, defaultSettings)));
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
@@ -140,12 +156,11 @@ export const InstructorSettingsPage: FC = () => {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid grid-cols-5 w-full max-w-4xl">
+        <TabsList className="grid grid-cols-4 w-full max-w-4xl">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="teaching">Teaching Preferences</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="appearance">Appearance</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -281,41 +296,6 @@ export const InstructorSettingsPage: FC = () => {
                 <Button variant="outline" onClick={logoutAllSessions}>Logout From All Sessions</Button>
               </div>
               <div className="text-sm text-slate-600">Last login: <span className="font-medium">{user?.lastActivityAt ? new Date(user.lastActivityAt).toLocaleString() : 'Not available'}</span></div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="appearance">
-          <Card>
-            <CardHeader>
-              <CardTitle>Appearance</CardTitle>
-              <CardDescription>Very small UI preferences for your instructor workspace.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Theme</Label>
-                  <Select value={settings.theme} onValueChange={(value: 'light' | 'dark') => setSettings((current) => ({ ...current, theme: value }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="light">Light</SelectItem>
-                      <SelectItem value="dark">Dark</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Default Dashboard Page</Label>
-                  <Select value={settings.defaultDashboardPage} onValueChange={(value: 'dashboard' | 'courses' | 'doubts') => setSettings((current) => ({ ...current, defaultDashboardPage: value }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="dashboard">Dashboard</SelectItem>
-                      <SelectItem value="courses">My Courses</SelectItem>
-                      <SelectItem value="doubts">Student Doubts</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button onClick={saveSettings} disabled={saving}>{saving ? 'Saving...' : 'Save Appearance'}</Button>
             </CardContent>
           </Card>
         </TabsContent>

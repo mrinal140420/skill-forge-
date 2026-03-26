@@ -1,4 +1,4 @@
-import { FC, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ export const MyCourses: FC = () => {
   const { data: enrollments = [], isLoading } = useEnrollments();
   const isInstructor = user?.role === 'instructor';
   const [selectedTab, setSelectedTab] = useState('curriculum');
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [aiQuestion, setAiQuestion] = useState('');
   const [chatMessages, setChatMessages] = useState<{ role: string; text: string }[]>([
     { role: 'bot', text: `Hi ${user?.name?.split(' ')[0] || 'there'}, ask me anything from this course and I’ll explain it clearly with an example and a simple next step.` },
@@ -25,9 +26,32 @@ export const MyCourses: FC = () => {
   const [expandedTopics, setExpandedTopics] = useState<Set<number>>(new Set());
 
   const typedEnrollments = enrollments as Enrollment[];
-  const course = typedEnrollments[0];
+  useEffect(() => {
+    if (typedEnrollments.length === 0) {
+      setSelectedCourseId(null);
+      return;
+    }
+
+    const hasSelected = selectedCourseId != null
+      && typedEnrollments.some((enrollment) => enrollment.courseId === selectedCourseId);
+
+    if (!hasSelected) {
+      setSelectedCourseId(typedEnrollments[0].courseId);
+    }
+  }, [typedEnrollments, selectedCourseId]);
+
+  const course = typedEnrollments.find((enrollment) => enrollment.courseId === selectedCourseId) || typedEnrollments[0];
   const courseModules = course?.course?.modules || [];
   const { data: courseTopics = [], isLoading: topicsLoading } = useCourseTopics(course?.courseId, !!course?.courseId);
+
+  useEffect(() => {
+    if (!course) return;
+
+    setChatMessages([
+      { role: 'bot', text: `Hi ${user?.name?.split(' ')[0] || 'there'}, ask me anything from ${course.courseTitle} and I’ll explain it clearly with an example and a simple next step.` },
+    ]);
+    setAiQuestion('');
+  }, [course?.courseId, course?.courseTitle, user?.name]);
 
   const toggleTopic = (id: number) =>
     setExpandedTopics((prev) => {
@@ -376,7 +400,15 @@ export const MyCourses: FC = () => {
                       <Badge variant={enrollment.progress >= 100 ? 'secondary' : 'default'}>
                         {enrollment.progress >= 100 ? 'Completed' : 'In Progress'}
                       </Badge>
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/course-content/${enrollment.courseId}`)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedCourseId(enrollment.courseId);
+                          setSelectedTab('curriculum');
+                          setExpandedTopics(new Set());
+                        }}
+                      >
                         Open Course
                       </Button>
                     </div>

@@ -1,8 +1,8 @@
 /**
- * SkillBot Chatbot Service with Google Generative AI Integration
- * - Course-contextual responses only
- * - Personalized with student name
- * - Prevents off-topic questions
+ * SkillBot Chatbot Service
+ * - Fully dynamic: Adapts to any of the 18+ courses via CourseContext
+ * - Handles all broad Computer Science Engineering (CSE) topics
+ * - Blocks non-academic chatter automatically
  */
 
 import apiClient from './apiClient';
@@ -21,94 +21,71 @@ export interface CourseContext {
 }
 
 /**
- * Check if a question is related to the course
+ * Client-side filter to quickly block obvious non-academic junk
+ * before wasting API calls. We let the LLM handle the complex CSE validation.
  */
-export const isCoursRelated = (question: string, courseContext: CourseContext): boolean => {
+export const isCourseRelated = (question: string, _courseContext: CourseContext): boolean => {
   const offTopicKeywords = [
-    'weather',
-    'sports',
-    'politics',
-    'entertainment',
-    'jokes',
-    'funny',
-    'meme',
-    'covid',
-    'vaccine',
-    'bitcoin',
-    'stock',
+    'weather', 'sports', 'politics', 'entertainment', 'movie', 'actor',
+    'jokes', 'funny', 'meme', 'covid', 'vaccine', 'bitcoin', 'stock', 'recipe'
   ];
 
-  const lowerQuestion = question.toLowerCase();
+  const lowerQuestion = question.toLowerCase().trim();
+  const words = lowerQuestion.split(/\s+/);
 
-  // Check for explicitly off-topic keywords
-  if (offTopicKeywords.some((keyword) => lowerQuestion.includes(keyword))) {
+  // Fast fail for obvious non-academic topics
+  if (offTopicKeywords.some((keyword) => words.includes(keyword))) {
     return false;
   }
 
-  // Check if question contains course-related keywords
-  const courseKeywords = [
-    courseContext.courseTitle.toLowerCase(),
-    ...( courseContext.topics?.map((t) => t.toLowerCase()) || []),
-    'concept',
-    'example',
-    'exercise',
-    'explain',
-    'understand',
-    'solve',
-    'algorithm',
-    'data',
-    'code',
-    'function',
-  ];
-
-  return courseKeywords.some((keyword) => keyword && lowerQuestion.includes(keyword)) ||
-    question.trim().split(/\s+/).length <= 4;
+  // Pass everything else to the AI. The system prompt will block
+  // anything that isn't CSE or course-related.
+  return true;
 };
 
 /**
- * Build a contextualized system prompt for the chatbot
+ * Build a highly dynamic, course-agnostic system prompt.
+ * It adapts entirely based on the injected CourseContext.
  */
 export const buildSystemPrompt = (courseContext: CourseContext): string => {
-  return `You are SkillBot, an AI tutor for the course "${courseContext.courseTitle}".
+  const studentName = courseContext.studentName || 'Student';
+  const courseTitle = courseContext.courseTitle;
+  const topics = courseContext.topics?.join(', ') || 'General Concepts';
+  const description = courseContext.courseDescription ? `Course Description: ${courseContext.courseDescription}` : '';
 
-You are helping a student named ${courseContext.studentName || 'Student'} understand the course material.
+  return `You are SkillBot, an expert AI Tutor for the SkillForge adaptive learning platform.
 
-Your responsibilities:
-1. Answer questions ONLY about topics related to "${courseContext.courseTitle}"
-2. Provide clear, structured, and beginner-friendly explanations
-3. Include the student's name when greeting or acknowledging their work
-4. Suggest relevant examples and practice problems
-5. Break down complex concepts into simpler parts
-6. Provide code examples when relevant
+CURRENT SESSION CONTEXT:
+- Student: ${studentName}
+- Active Course: "${courseTitle}"
+- Focus Topics: ${topics}
+${description}
 
-IMPORTANT RULES:
-- NEVER answer questions unrelated to ${courseContext.courseTitle}
-- NEVER provide general knowledge answers (weather, sports, politics, etc.)
-- NEVER engage in casual conversation or jokes
-- If a question is off-topic, politely redirect to course content
-- Keep responses BALANCED: usually 4-7 sentences
-- Avoid one-line answers and avoid very long paragraphs
-- Prefer this structure: brief explanation → one concrete example → one next step
-- Use friendly but professional tone
+YOUR CORE DIRECTIVES:
+1. DOMAIN BOUNDARIES: You are authorized to answer questions specifically about "${courseTitle}" AND any general Computer Science Engineering (CSE) topic (e.g., AI/ML, Deep Learning, Cybersecurity, Operating Systems, Linux, Data Structures, Networking, etc.).
+2. STRICT REFUSAL: You MUST politely refuse to answer any questions outside of Computer Science, Software Engineering, or Academics. If asked about sports, pop culture, or personal opinions, redirect the user.
+3. TONE & PERSONA: Be encouraging, professional, and beginner-friendly. Always use the student's name (${studentName}) to personalize the experience.
+4. RESPONSE STRUCTURE: Keep responses balanced (4-7 sentences). Use the format: Brief Explanation -> Concrete Example -> One Actionable Next Step.
+5. TECHNICAL ACCURACY: Provide clean, well-commented code snippets, CLI commands, or technical explanations only when relevant to the query.
 
-Topics covered in this course: ${courseContext.topics?.join(', ') || 'Various CS concepts'}
-
-Example response format:
-"Hi ${courseContext.studentName || 'there'}! That's a great question about [topic]. [Clear explanation in a few sentences]. Example: [short practical example]. Next, try [one action]."`;
+EXAMPLE REDIRECTION FOR OFF-TOPIC QUERIES:
+"Hi ${studentName}, I'm here to help you master Computer Science and ${courseTitle}. Let's get back to the tech! What would you like to explore next?"`;
 };
 
 /**
- * Send a message to SkillBot with course context
+ * Send a message to SkillBot with dynamic course context
  */
 export const sendSkillBotMessage = async (
   question: string,
   courseContext: CourseContext
 ): Promise<string> => {
-  // Check if question is course-related
-  if (!isCoursRelated(question, courseContext)) {
-    return `Hi ${courseContext.studentName || 'there'}! I appreciate your question, but I'm specifically designed to help with "${courseContext.courseTitle}". Let me help you with course-related questions instead. What would you like to know about this course?`;
+
+  // 1. Client-side fast fail
+  if (!isCourseRelated(question, courseContext)) {
+    return `Hi ${courseContext.studentName || 'there'}! I'm specifically designed to help with Computer Science and "${courseContext.courseTitle}". Let's stay focused on your learning goals. What can I help you with today?`;
   }
 
+  // 2. Send to backend with dynamic prompt
   try {
     const { data } = await apiClient.post('/api/skillbot/chat', {
       message: question,
@@ -120,28 +97,26 @@ export const sendSkillBotMessage = async (
 
     return data.botResponse || data.response || data.message || 'I could not generate a response.';
   } catch (error) {
-    console.error('Chatbot error:', error);
-    return 'Sorry, I encountered an error. Please try again.';
+    console.error('SkillBot API error:', error);
+    return 'Sorry, I encountered an error connecting to the platform. Please try again.';
   }
 };
 
 /**
- * Get suggested questions based on course topics
+ * Dynamically generate suggested questions based on the active course
  */
 export const getSuggestedQuestions = (courseContext: CourseContext): string[] => {
-  const baseQuestions = [
-    `Explain the key concepts of ${courseContext.courseTitle}`,
-    `Can you provide an example related to this course?`,
-    `How do I solve a problem using these concepts?`,
-    `What are the common mistakes students make?`,
-    `Summarize the important parts of this lesson`,
+  return [
+    `What are the core concepts of ${courseContext.courseTitle}?`,
+    `Can you show me a practical example related to this course?`,
+    `How do these concepts apply in real-world Computer Science?`,
+    `What are the most common mistakes students make when learning this?`,
+    `Can you give me a practice problem to test my understanding?`,
   ];
-
-  return baseQuestions;
 };
 
 /**
- * Validate course context before chatting
+ * Validate course context before initiating chat
  */
 export const validateCourseContext = (context: CourseContext): boolean => {
   return !!(context.courseId && context.courseTitle);

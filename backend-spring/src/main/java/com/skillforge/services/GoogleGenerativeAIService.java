@@ -26,6 +26,8 @@ import java.util.Optional;
 public class GoogleGenerativeAIService {
     private static final Logger logger = LoggerFactory.getLogger(GoogleGenerativeAIService.class);
     private static final String API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
+    private static final int DEFAULT_MAX_OUTPUT_TOKENS = 900;
+    private static final int MAX_RESPONSE_LENGTH = 2000;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
@@ -82,7 +84,7 @@ public class GoogleGenerativeAIService {
     }
 
     private String callGemini(String prompt, String resolvedApiKey) throws IOException, InterruptedException {
-        return callGemini(prompt, resolvedApiKey, 600);
+        return callGemini(prompt, resolvedApiKey, DEFAULT_MAX_OUTPUT_TOKENS);
     }
 
     private String callGemini(String prompt, String resolvedApiKey, int maxOutputTokens) throws IOException, InterruptedException {
@@ -180,10 +182,29 @@ public class GoogleGenerativeAIService {
 
     private String normalizeResponse(String response) {
         String normalized = response.replace("*", " ").replaceAll("\\s+", " ").trim();
-        if (normalized.length() <= 800) {
+        if (normalized.length() <= MAX_RESPONSE_LENGTH) {
             return normalized;
         }
-        return normalized.substring(0, 797).trim() + "...";
+        return trimAtSentenceBoundary(normalized, MAX_RESPONSE_LENGTH);
+    }
+
+    private String trimAtSentenceBoundary(String text, int maxLength) {
+        if (text == null || text.length() <= maxLength) {
+            return text;
+        }
+
+        int safeLimit = Math.max(0, maxLength - 3);
+        String candidate = text.substring(0, safeLimit);
+        int lastSentenceEnd = Math.max(candidate.lastIndexOf('.'), Math.max(candidate.lastIndexOf('!'), candidate.lastIndexOf('?')));
+        if (lastSentenceEnd >= 120) {
+            return candidate.substring(0, lastSentenceEnd + 1).trim();
+        }
+
+        int lastSpace = candidate.lastIndexOf(' ');
+        if (lastSpace > 0) {
+            candidate = candidate.substring(0, lastSpace);
+        }
+        return candidate.trim() + "...";
     }
 
     private String extractPromptValue(String prompt, String label) {

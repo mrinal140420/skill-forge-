@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 public class SkillBotService {
     private static final Logger log = LoggerFactory.getLogger(SkillBotService.class);
     private static final Pattern SENTENCE_SPLIT_PATTERN = Pattern.compile("(?<=[.!?])\\s+");
+    private static final int MAX_RESPONSE_LENGTH = 2000;
     private static final List<String> OFF_TOPIC_KEYWORDS = List.of(
             "weather", "sports", "match", "cricket", "football", "politics", "election",
             "movie", "music", "celebrity", "meme", "joke", "funny", "dating", "relationship",
@@ -54,7 +55,7 @@ public class SkillBotService {
         this.googleGenerativeAIService = googleGenerativeAIService;
     }
 
-    public ChatMessageDTO chat(Long userId, String userMessage, Long courseId) {
+    public ChatMessageDTO chat(Long userId, String userMessage, Long courseId, String customSystemPrompt) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -73,7 +74,10 @@ public class SkillBotService {
             botResponse = buildOffTopicResponse(user, course);
             messageType = "clarification";
         } else {
-            botResponse = googleGenerativeAIService.generateResponse(buildSystemPrompt(course, user), userMessage);
+            String prompt = (customSystemPrompt != null && !customSystemPrompt.isBlank())
+                    ? customSystemPrompt
+                    : buildSystemPrompt(course, user);
+            botResponse = googleGenerativeAIService.generateResponse(prompt, userMessage);
             botResponse = ensurePersonalized(user, course, userMessage, botResponse);
         }
 
@@ -90,6 +94,10 @@ public class SkillBotService {
                 userId, courseId, messageType, googleGenerativeAIService.getConfigurationStatus());
 
         return convertToDTO(savedMessage);
+    }
+
+    public ChatMessageDTO chat(Long userId, String userMessage, Long courseId) {
+        return chat(userId, userMessage, courseId, null);
     }
 
     private String categorizeQuestion(String message) {
@@ -117,18 +125,18 @@ public class SkillBotService {
                 .limit(10)
                 .collect(Collectors.joining(", "));
 
-        return "You are SkillBot, a strict course tutor for SkillForge.\n"
+        return "You are SkillBot, an AI tutor for SkillForge.\n"
                 + "Course Title: " + course.getTitle() + "\n"
                 + "Student Name: " + firstName(user) + "\n"
                 + "Course Description: " + course.getDescription() + "\n"
                 + "Course Topics: " + (topicTitles.isBlank() ? course.getCategory().name() : topicTitles) + "\n"
                 + "Sample Lessons: " + (lessonTitles.isBlank() ? "No lesson titles available yet" : lessonTitles) + "\n"
                 + "Rules:\n"
-                + "1. Answer only about this specific course.\n"
+            + "1. Answer questions about this course and broader Computer Science Engineering topics when relevant.\n"
                 + "2. Keep the answer clear and practical. Aim for 4-7 sentences: concept, why it matters, one practical example, and one next step.\n"
                 + "3. Begin your reply with 'Hi " + firstName(user) + ",' followed by your answer.\n"
-                + "4. If the question is broad, anchor it to the course topics above.\n"
-                + "5. Do not answer off-topic or casual questions. Redirect the student to the course content.\n";
+            + "4. If the question is broad, anchor it to course topics first, then connect to general CSE fundamentals.\n"
+            + "5. Do not answer off-topic or casual questions outside academics/CSE. Redirect politely.\n";
     }
 
     private boolean isCourseRelated(String message, Course course) {
@@ -144,7 +152,9 @@ public class SkillBotService {
 
         List<String> academicTokens = List.of(
             "explain", "example", "why", "how", "what is", "define", "concept", "module", "lesson", "topic",
-            "practice", "problem", "algorithm", "query", "memory", "network", "database", "system", "basics", "fundamentals"
+            "practice", "problem", "algorithm", "query", "memory", "network", "database", "system", "basics", "fundamentals",
+            "security", "cybersecurity", "cia triad", "confidentiality", "integrity", "availability", "deep learning", "neural network",
+            "machine learning", "ai", "operating system", "linux", "compiler", "cloud", "api"
         );
         return academicTokens.stream().anyMatch(normalizedMessage::contains);
     }
@@ -182,8 +192,8 @@ public class SkillBotService {
         }
 
     private String buildOffTopicResponse(User user, Course course) {
-        return "Hi " + firstName(user) + ", I can only help with " + course.getTitle()
-            + ". Ask about a topic, lesson, definition, or example from this course and I'll answer directly.";
+        return "Hi " + firstName(user) + ", I can help with " + course.getTitle()
+            + " and general Computer Science topics. Please ask an academic/CSE question and I'll explain it clearly with an example and next step.";
     }
 
     private String ensurePersonalized(User user, Course course, String userMessage, String response) {
@@ -210,10 +220,29 @@ public class SkillBotService {
 
         cleaned = enforceGracefulAnswer(cleaned, user, course, userMessage);
 
-        if (cleaned.length() > 800) {
-            cleaned = cleaned.substring(0, 797).trim() + "...";
+        if (cleaned.length() > MAX_RESPONSE_LENGTH) {
+            cleaned = trimAtSentenceBoundary(cleaned, MAX_RESPONSE_LENGTH);
         }
         return cleaned;
+    }
+
+    private String trimAtSentenceBoundary(String text, int maxLength) {
+        if (text == null || text.length() <= maxLength) {
+            return text;
+        }
+
+        int safeLimit = Math.max(0, maxLength - 3);
+        String candidate = text.substring(0, safeLimit);
+        int lastSentenceEnd = Math.max(candidate.lastIndexOf('.'), Math.max(candidate.lastIndexOf('!'), candidate.lastIndexOf('?')));
+        if (lastSentenceEnd >= 120) {
+            return candidate.substring(0, lastSentenceEnd + 1).trim();
+        }
+
+        int lastSpace = candidate.lastIndexOf(' ');
+        if (lastSpace > 0) {
+            candidate = candidate.substring(0, lastSpace);
+        }
+        return candidate.trim() + "...";
     }
 
     private String enforceGracefulAnswer(String response, User user, Course course, String userMessage) {
@@ -294,7 +323,7 @@ public class SkillBotService {
         String title = course.getTitle() == null ? "" : course.getTitle().toLowerCase(Locale.ROOT);
         String question = userMessage == null ? "" : userMessage.toLowerCase(Locale.ROOT);
         boolean aiMlCourse = containsAny(title, "ai", "ml", "machine learning", "artificial intelligence");
-        boolean conceptAsk = containsAny(question, "key concept", "concept", "basics", "introduction", "fundamental", "explain");
+        boolean conceptAsk = containsAny(question, "key concept", "concept", "basics", "introduction", "fundamental", "explain", "what is", "deep learning", "neural network", "model");
         return aiMlCourse && conceptAsk;
     }
 
